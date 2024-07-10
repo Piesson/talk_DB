@@ -312,7 +312,7 @@ def chat():
 
         # OpenAI API 호출
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",
             messages=messages,
             max_tokens=100  # 응답 길이 제한
         )
@@ -366,7 +366,7 @@ def translate():
     text = request.json['text']
     try:
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a translator. Translate the given Korean text to English."},
                 {"role": "user", "content": f"Translate this to English: {text}"}

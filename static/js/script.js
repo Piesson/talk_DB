@@ -103,35 +103,47 @@ document.addEventListener("DOMContentLoaded", function () {
       voiceBtn.classList.add("active");
       voiceBtn.classList.add("voice-active");
     };
-
-    recognition.onspeechstart = function () {
-      console.log("음성이 감지되었습니다.");
-      hasSpeechStarted = true;
-      clearTimeout(silenceTimer);
+  
+    recognition.onend = function () {
+      console.log("음성 인식이 종료되었습니다.");
+      isListening = false;
+      hasSpeechStarted = false;
+      voiceBtn.classList.remove("active");
+      voiceBtn.classList.remove("voice-active");
+  
+      if (userInput.value.trim() !== "" && userInput.value.trim() !== lastProcessedResult) {
+        lastProcessedResult = userInput.value.trim();
+        sendMessage(lastProcessedResult);
+      }
+  
+      if (isAutoMicOn && !isAITalking && !isLoading) {
+        startListening();
+      }
     };
-
+  
     recognition.onresult = function (event) {
       clearTimeout(silenceTimer);
-
+  
       let currentTranscript = "";
-
+  
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           currentTranscript += event.results[i][0].transcript + " ";
         }
       }
-
+  
       userInput.value = currentTranscript.trim();
-
+  
       if (currentTranscript.trim() !== lastProcessedResult.trim()) {
         if (currentTranscript.trim() !== "") {
           lastProcessedResult = currentTranscript.trim();
           sendMessage(lastProcessedResult, true);
         }
       }
-
+  
       startSilenceTimer();
     };
+  
 
     recognition.onspeechend = function () {
       console.log("음성 입력이 중지되었습니다.");

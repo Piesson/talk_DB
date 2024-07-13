@@ -53,11 +53,12 @@ document.addEventListener("DOMContentLoaded", function () {
   let hasSpeechStarted = false;
   let sessionStartTime;
   let isLoggedIn = false;
-  const silenceThreshold = 1500;
+  const silenceThreshold = 3000;
   let lastProcessedResult = "";
   let isTranslating = false;
   let currentDate = null;
   let isLoadingHistory = false;
+  let accumulatedTranscript = '';
   let messageQueue = [];
   let pendingMessage = null;
 

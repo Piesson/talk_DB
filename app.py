@@ -617,7 +617,7 @@ admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_c
         
 #         # OpenAI API를 사용하여 보고서 생성
 #         response = client.chat.completions.create(
-#             model="gpt-4-mini",
+#             model="gpt-4o-mini",
 #             messages=[
 #                 {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
 #                 {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}

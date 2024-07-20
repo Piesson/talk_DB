@@ -1,6 +1,6 @@
 ﻿alembic==1.13.2
 annotated-types==0.7.0
-anyio==4.4.0
+anyio
 blinker==1.8.2
 certifi==2024.6.2
 click==8.1.7

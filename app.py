@@ -371,7 +371,7 @@ def chat():
 
         # OpenAI API 호출
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=messages,
             temperature=0.5,  # 여기에 temperature 추가
             max_tokens=50,   # 필요에 따라 다른 매개변수도 추가 가능
@@ -430,7 +430,7 @@ def translate():
     text = request.json['text']
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a translator. Translate the given Korean text to English."},
                 {"role": "user", "content": f"Translate this to English: {text}"}
@@ -617,7 +617,7 @@ admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_c
         
 #         # OpenAI API를 사용하여 보고서 생성
 #         response = client.chat.completions.create(
-#             model="gpt-4-turbo",
+#             model="gpt-4-mini",
 #             messages=[
 #                 {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
 #                 {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}

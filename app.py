@@ -52,9 +52,9 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = 'mks010103@gmail.com'  # 실제 이메일 주소로 변경
-app.config['MAIL_PASSWORD'] = 'vhnk zrko wxxt oank'  # 실제 앱 비밀번호로 변경
-app.config['MAIL_DEFAULT_SENDER'] = 'mks010103@gmail.com'  # 실제 이메일 주소로 변경
+app.config['MAIL_USERNAME'] = 'mks010103@gmail.com' # 실제 이메일 주소로 변경
+app.config['MAIL_PASSWORD'] = 'vhnk zrko wxxt oank' # 실제 앱 비밀번호로 변경
+app.config['MAIL_DEFAULT_SENDER'] = 'mks010103@gmail.com' # 실제 이메일 주소로 변경
 
 mail = Mail(app)
 

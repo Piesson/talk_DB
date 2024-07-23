@@ -368,11 +368,11 @@ def chat():
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.5,
+            temperature=1,
             max_tokens=50,
-            top_p=0.7,
-            frequency_penalty=0.5,
-            presence_penalty=0.3
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
         )
         ai_message_content = response.choices[0].message.content
 

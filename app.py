@@ -369,7 +369,7 @@ def chat():
             model="gpt-4o-mini",
             messages=messages,
             temperature=1,
-            max_tokens=50,
+            max_tokens=100,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0

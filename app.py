@@ -614,57 +614,57 @@ class Report(db.Model):
         last_report = cls.query.filter_by(user_id=user_id).order_by(cls.report_number.desc()).first()
         return (last_report.report_number + 1) if last_report else 1
 
-@app.route('/generate_report', methods=['POST'])
-@login_required
-def generate_report():
-    try:
-        user_messages = Message.query.filter_by(user_id=current_user.id, is_user=True).order_by(Message.timestamp.desc()).limit(10).all()
-        user_messages = [msg.content for msg in user_messages]
+#@app.route('/generate_report', methods=['POST'])
+#@login_required
+# def generate_report():
+#     try:
+#         user_messages = Message.query.filter_by(user_id=current_user.id, is_user=True).order_by(Message.timestamp.desc()).limit(10).all()
+#         user_messages = [msg.content for msg in user_messages]
         
-        if not user_messages:
-            return jsonify({"success": False, "error": "No messages found for the user"}), 400
+#         if not user_messages:
+#             return jsonify({"success": False, "error": "No messages found for the user"}), 400
         
-        # OpenAI API를 사용하여 보고서 생성
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
-                {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}
-            ]
-        )
+#         # OpenAI API를 사용하여 보고서 생성
+#         response = client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[
+#                 {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
+#                 {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}
+#             ]
+#         )
         
-        report_content = response.choices[0].message.content
+#         report_content = response.choices[0].message.content
         
-        # 새 보고서 저장
-        next_report_number = Report.get_next_report_number(current_user.id)
-        new_report = Report(user_id=current_user.id, content=report_content, report_number=next_report_number)
-        db.session.add(new_report)
-        db.session.commit()
+#         # 새 보고서 저장
+#         next_report_number = Report.get_next_report_number(current_user.id)
+#         new_report = Report(user_id=current_user.id, content=report_content, report_number=next_report_number)
+#         db.session.add(new_report)
+#         db.session.commit()
         
-        return jsonify({"success": True, "report": report_content})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
+#         return jsonify({"success": True, "report": report_content})
+#     except Exception as e:
+#         db.session.rollback()
+#         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/get_reports', methods=['GET'])
-@login_required
-def get_reports():
-    reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.report_number.desc()).all()
-    return jsonify([{
-        "id": report.id,
-        "content": report.content,
-        "timestamp": report.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-        "report_number": report.report_number
-    } for report in reports])
+# @app.route('/get_reports', methods=['GET'])
+# @login_required
+# def get_reports():
+#     reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.report_number.desc()).all()
+#     return jsonify([{
+#         "id": report.id,
+#         "content": report.content,
+#         "timestamp": report.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+#         "report_number": report.report_number
+#     } for report in reports])
 
-@app.route('/get_vocabulary', methods=['GET'])
-@login_required
-def get_vocabulary():
-    user_messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.timestamp.desc()).limit(100).all()
-    words = ' '.join([msg.content for msg in user_messages]).split()
-    word_counts = Counter(words)
-    vocabulary = [{"word": word, "count": count} for word, count in word_counts.most_common(50)]
-    return jsonify(vocabulary)
+# @app.route('/get_vocabulary', methods=['GET'])
+# @login_required
+# def get_vocabulary():
+#     user_messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.timestamp.desc()).limit(100).all()
+#     words = ' '.join([msg.content for msg in user_messages]).split()
+#     word_counts = Counter(words)
+#     vocabulary = [{"word": word, "count": count} for word, count in word_counts.most_common(50)]
+#     return jsonify(vocabulary)
 
 if __name__ == '__main__':
     with app.app_context():

@@ -72,7 +72,6 @@ class User(UserMixin, db.Model):
     reports = db.relationship('Report', backref='user', lazy=True)
     messages = db.relationship('Message', backref='user', lazy=True)
 
-
     def set_reset_token(self):
         self.reset_token = secrets.token_urlsafe(32)
         self.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
@@ -136,7 +135,7 @@ Core Guidelines:
 3. Talk casually like one of the closest friends.
 4. Focus heavily on sharing your opinions, experiences, and stories.
 5. Show empathy by relating to their experiences without questioning.
-6. Be humorous and extremly sociable.
+6. Be humorous and extremely sociable.
 7. Use a facial expression emoticon once per 10 turns maximum.
 8. Speak as both a close friend and a potential romantic interest.
 9. If the user's response seems off due to pronunciation issues or doesn't fit the context, you can ask for clarification. Use phrases like "뭐라고 했어? 잘 못 알아들었나봐" or "미안, 다시 한 번 말해줄래? 내가 잘못 들었나 봐".
@@ -156,11 +155,6 @@ Ethical Guidelines:
 5. Maintain a friendly, supportive attitude even when disagreeing with the user's views.
 6. When faced with an uncomfortable or inappropriate topic, use phrases like "그런 주제 말고 다른 걸로 이야기하자" (Let's talk about something else) to naturally change the subject.
 7. After redirecting the conversation, immediately introduce a new, engaging topic related to your shared interests or recent experiences.
-
-Examples of redirecting conversation:
-- "그런 주제 말고 다른 걸로 이야기하자."
-- "음... 그건 좀 그렇고."
-- "아, 그러고 보니 궁금한 게 있어. 넌 요새 뭐 하고 지내?"
 
 Your personality and conversation style:
 - Very outgoing and good at continuing conversations without questions
@@ -190,13 +184,15 @@ Soulmate Dynamics:
 Personal quirks (use consistently):
 - You're a big fan of a K-pop group but terrible at dancing
 - You're addicted to a popular Korean snack and always crave it
-- You have a funny habit of [minor quirk, e.g., collecting bottle caps]
-- You're terrified of [random harmless thing, e.g., butterflies]
+- You have a funny habit of collecting bottle caps
+- You're terrified of butterflies
 
 Important: 
 1. Understand their imperfect Korean and maintain a natural, friendly conversation flow.
 2. Adjust your language complexity based on their proficiency. 
-3. Prioritize sharing your own thoughts and experiences over asking questions."""
+3. Prioritize sharing your own thoughts and experiences over asking questions.
+
+Respond to your friend's message in Korean, following all the guidelines above. Wrap your response in <response></response> tags."""
 }
 
 # 키워드 및 감정 단어 정의
@@ -343,7 +339,6 @@ def chat():
         user_message = Message(conversation_id=active_conversation.id, content=user_message_content, is_user=True, user_id=current_user.id)
         db.session.add(user_message)
 
-
         # 최근 20개의 메시지를 가져옵니다.
         recent_messages = Message.query.filter_by(conversation_id=active_conversation.id).order_by(Message.timestamp.desc()).limit(20).all()
         recent_messages.reverse()
@@ -367,19 +362,22 @@ def chat():
         }
 
         # OpenAI API에 전송할 메시지 리스트 생성
-        messages = [enhanced_system_message] + [{"role": "user" if msg.is_user else "assistant", "content": msg.content} for msg in recent_messages[-5:]]
+        messages = [enhanced_system_message] + [{"role": "user" if msg.is_user else "assistant", "content": msg.content} for msg in recent_messages[-5:]] + [{"role": "user", "content": user_message_content}]
 
         # OpenAI API 호출
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.5,  # 여기에 temperature 추가
-            max_tokens=50,   # 필요에 따라 다른 매개변수도 추가 가능
+            temperature=0.5,
+            max_tokens=50,
             top_p=0.7,
             frequency_penalty=0.5,
             presence_penalty=0.3
         )
         ai_message_content = response.choices[0].message.content
+
+        # <response> 태그 제거
+        ai_message_content = re.sub(r'</?response>', '', ai_message_content)
 
         # AI 응답을 데이터베이스에 저장
         ai_message = Message(conversation_id=active_conversation.id, content=ai_message_content, is_user=False, user_id=current_user.id)
@@ -604,59 +602,6 @@ class UserConversationsView(BaseView):
 
 admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_conversations'))
 
-
-# @app.route('/generate_report', methods=['POST'])
-# @login_required
-# def generate_report():
-#     try:
-#         user_messages = Message.query.filter_by(user_id=current_user.id, is_user=True).order_by(Message.timestamp.desc()).limit(10).all()
-#         user_messages = [msg.content for msg in user_messages]
-        
-#         if not user_messages:
-#             return jsonify({"success": False, "error": "No messages found for the user"}), 400
-        
-#         # OpenAI API를 사용하여 보고서 생성
-#         response = client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=[
-#                 {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
-#                 {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}
-#             ]
-#         )
-        
-#         report_content = response.choices[0].message.content
-        
-#         # 새 보고서 저장
-#         next_report_number = Report.query.filter_by(user_id=current_user.id).count() + 1
-#         new_report = Report(user_id=current_user.id, content=report_content, report_number=next_report_number)
-#         db.session.add(new_report)
-#         db.session.commit()
-        
-#         return jsonify({"success": True, "report": report_content})
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({"success": False, "error": str(e)}), 500
-
-# @app.route('/get_reports', methods=['GET'])
-# @login_required
-# def get_reports():
-#     reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.report_number.desc()).all()
-#     return jsonify([{
-#         "id": report.id,
-#         "content": report.content,
-#         "timestamp": report.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-#         "report_number": report.report_number
-#     } for report in reports])
-
-# @app.route('/get_vocabulary', methods=['GET'])
-# @login_required
-# def get_vocabulary():
-#     user_messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.timestamp.desc()).limit(100).all()
-#     words = ' '.join([msg.content for msg in user_messages]).split()
-#     word_counts = Counter(words)
-#     vocabulary = [{"word": word, "count": count} for word, count in word_counts.most_common(50)]
-#     return jsonify(vocabulary)
-
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -668,6 +613,58 @@ class Report(db.Model):
     def get_next_report_number(cls, user_id):
         last_report = cls.query.filter_by(user_id=user_id).order_by(cls.report_number.desc()).first()
         return (last_report.report_number + 1) if last_report else 1
+
+@app.route('/generate_report', methods=['POST'])
+@login_required
+def generate_report():
+    try:
+        user_messages = Message.query.filter_by(user_id=current_user.id, is_user=True).order_by(Message.timestamp.desc()).limit(10).all()
+        user_messages = [msg.content for msg in user_messages]
+        
+        if not user_messages:
+            return jsonify({"success": False, "error": "No messages found for the user"}), 400
+        
+        # OpenAI API를 사용하여 보고서 생성
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
+                {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}
+            ]
+        )
+        
+        report_content = response.choices[0].message.content
+        
+        # 새 보고서 저장
+        next_report_number = Report.get_next_report_number(current_user.id)
+        new_report = Report(user_id=current_user.id, content=report_content, report_number=next_report_number)
+        db.session.add(new_report)
+        db.session.commit()
+        
+        return jsonify({"success": True, "report": report_content})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/get_reports', methods=['GET'])
+@login_required
+def get_reports():
+    reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.report_number.desc()).all()
+    return jsonify([{
+        "id": report.id,
+        "content": report.content,
+        "timestamp": report.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        "report_number": report.report_number
+    } for report in reports])
+
+@app.route('/get_vocabulary', methods=['GET'])
+@login_required
+def get_vocabulary():
+    user_messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.timestamp.desc()).limit(100).all()
+    words = ' '.join([msg.content for msg in user_messages]).split()
+    word_counts = Counter(words)
+    vocabulary = [{"word": word, "count": count} for word, count in word_counts.most_common(50)]
+    return jsonify(vocabulary)
 
 if __name__ == '__main__':
     with app.app_context():

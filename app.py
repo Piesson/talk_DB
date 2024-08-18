@@ -388,7 +388,7 @@ def chat():
         try:
             speech_response = client.audio.speech.create(
                 model="tts-1",
-                voice="alloy",
+                voice="nova",
                 input=ai_message_content,
                 speed=1.0
             )

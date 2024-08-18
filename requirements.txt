@@ -28,7 +28,7 @@ MarkupSafe
 nltk
 numpy
 openai
-packaging
+packaging   
 pydantic
 pydantic_core
 python-dotenv

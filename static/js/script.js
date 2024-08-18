@@ -1,72 +1,102 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const chatContainer = document.getElementById("chat-container");
-  const userInput = document.getElementById("user-input");
-  const sendBtn = document.getElementById("send-btn");
-  const voiceBtn = document.getElementById("voice-btn");
-  const autoMicToggle = document.getElementById("auto-mic-toggle");
-  const authModal = document.getElementById("auth-modal");
-  const loginBtn = document.getElementById("login-btn");
-  const signupBtn = document.getElementById("signup-btn");
-  const authMessage = document.getElementById("auth-message");
-  const modalTitle = document.getElementById("modal-title");
-  const loginForm = document.getElementById("login-form");
-  const signupForm = document.getElementById("signup-form");
-  const showSignupLink = document.getElementById("show-signup");
-  const showLoginLink = document.getElementById("show-login");
-  const menuIcon = document.getElementById("menu-icon");
-  const sidebar = document.getElementById("sidebar");
-  const closeSidebar = document.getElementById("close-sidebar");
-  const userId = document.getElementById("user-id");
-  const showHistory = document.getElementById("show-history");
-  const historyModal = document.getElementById("history-modal");
-  const closeHistory = historyModal.querySelector(".close");
-  const historyContainer = document.getElementById("history-container");
-  const loadingHistory = document.getElementById("loading-history");
-  const showForgotPasswordLink = document.getElementById(
-    "show-forgot-password"
-  );
-  const forgotPasswordForm = document.getElementById("forgot-password-form");
-  const backToLoginLink = document.getElementById("back-to-login");
-  const resetPasswordBtn = document.getElementById("reset-password-btn");
-
-  const showReports = document.getElementById("show-reports");
-  const reportsModal = document.getElementById("reports-modal");
-  const closeReports = reportsModal.querySelector(".close");
-  const reportsContainer = document.getElementById("reports-container");
-
-  const showVocabulary = document.getElementById("show-vocabulary");
-  const vocabularyModal = document.getElementById("vocabulary-modal");
-  const closeVocabulary = vocabularyModal.querySelector(".close");
-  const vocabularyContainer = document.getElementById("vocabulary-container");
-
-  let messageCount = 0;
-
-  let recognition;
-  let isMicrophoneActive = false;
+// 모듈 패턴을 사용하여 전역 네임스페이스 오염 방지
+const ChatApp = (function () {
+  // 비공개 변수
+  let isLoggedIn = false;
+  let isListening = false;
   let isAITalking = false;
   let isLoading = false;
-  let isListening = false;
-  let isProcessing = false;
   let isAutoMicOn = false;
   let currentAudio = null;
-  let silenceTimer;
-  let hasSpeechStarted = false;
-  let sessionStartTime;
-  let isLoggedIn = false;
-  const silenceThreshold = 3000;
-  let lastProcessedResult = "";
+  let recognition = null;
+  let messageCount = 0;
+  let sessionStartTime = null;
   let isTranslating = false;
-  let currentDate = null;
-  let isLoadingHistory = false;
-  let accumulatedTranscript = '';
-  let messageQueue = [];
   let pendingMessage = null;
+  let messageQueue = [];
 
-  const REPORT_INTERVAL = 2; // 이 값을 변경하여 보고서 생성 간격을 조정할 수 있습니다.
+  // DOM 요소 캐싱
+  const elements = {
+    chatContainer: document.getElementById("chat-container"),
+    userInput: document.getElementById("user-input"),
+    sendBtn: document.getElementById("send-btn"),
+    voiceBtn: document.getElementById("voice-btn"),
+    autoMicToggle: document.getElementById("auto-mic-toggle"),
+    authModal: document.getElementById("auth-modal"),
+    loginBtn: document.getElementById("login-btn"),
+    signupBtn: document.getElementById("signup-btn"),
+    authMessage: document.getElementById("auth-message"),
+    modalTitle: document.getElementById("modal-title"),
+    loginForm: document.getElementById("login-form"),
+    signupForm: document.getElementById("signup-form"),
+    showSignupLink: document.getElementById("show-signup"),
+    showLoginLink: document.getElementById("show-login"),
+    menuIcon: document.getElementById("menu-icon"),
+    sidebar: document.getElementById("sidebar"),
+    closeSidebar: document.getElementById("close-sidebar"),
+    userId: document.getElementById("user-id"),
+    showHistory: document.getElementById("show-history"),
+    historyModal: document.getElementById("history-modal"),
+    closeHistory: document.getElementById("close-history"),
+    historyContainer: document.getElementById("history-container"),
+    loadingHistory: document.getElementById("loading-history"),
+    showForgotPasswordLink: document.getElementById("show-forgot-password"),
+    forgotPasswordForm: document.getElementById("forgot-password-form"),
+    backToLoginLink: document.getElementById("back-to-login"),
+    resetPasswordBtn: document.getElementById("reset-password-btn"),
+    showReports: document.getElementById("show-reports"),
+    reportsModal: document.getElementById("reports-modal"),
+    closeReports: document.getElementById("close-reports"),
+    reportsContainer: document.getElementById("reports-container"),
+    showVocabulary: document.getElementById("show-vocabulary"),
+    vocabularyModal: document.getElementById("vocabulary-modal"),
+    closeVocabulary: document.getElementById("close-vocabulary"),
+    vocabularyContainer: document.getElementById("vocabulary-container"),
+    logoutBtn: document.getElementById("logout-btn"),
+  };
 
+  // 초기화 함수
+  function init() {
+    if (!elements.chatContainer) {
+      console.error("Critical element is missing. Chat container not found.");
+      return;
+    }
+    setupEventListeners();
+    setupSpeechRecognition();
+    checkLoginStatus();
+  }
+
+  // 이벤트 리스너 설정
+  function setupEventListeners() {
+    elements.sendBtn?.addEventListener("click", sendMessage);
+    elements.userInput?.addEventListener("keypress", handleKeyPress);
+    elements.voiceBtn?.addEventListener("click", toggleVoiceRecognition);
+    elements.autoMicToggle?.addEventListener("click", toggleAutoMic);
+    elements.loginBtn?.addEventListener("click", login);
+    elements.signupBtn?.addEventListener("click", signup);
+    elements.showSignupLink?.addEventListener("click", showSignupForm);
+    elements.showLoginLink?.addEventListener("click", showLoginForm);
+    elements.menuIcon?.addEventListener("click", openSidebar);
+    elements.closeSidebar?.addEventListener("click", closeSidebar);
+    elements.showHistory?.addEventListener("click", showHistoryModal);
+    elements.closeHistory?.addEventListener("click", closeHistoryModal);
+    elements.showForgotPasswordLink?.addEventListener(
+      "click",
+      showForgotPasswordForm
+    );
+    elements.backToLoginLink?.addEventListener("click", backToLogin);
+    elements.resetPasswordBtn?.addEventListener("click", resetPassword);
+    elements.showReports?.addEventListener("click", showReportsModal);
+    elements.closeReports?.addEventListener("click", closeReportsModal);
+    elements.showVocabulary?.addEventListener("click", showVocabularyModal);
+    elements.closeVocabulary?.addEventListener("click", closeVocabularyModal);
+    elements.logoutBtn?.addEventListener("click", logout);
+  }
+
+  // 메시지 전송 함수
   function sendMessage(message, isVoiceInput = false) {
-    if (message && message.trim() !== "") {
-      if (isProcessing) {
+    message = message || elements.userInput.value.trim();
+    if (message) {
+      if (isProcessing()) {
         pendingMessage = message;
         showPendingMessageNotification();
       } else {
@@ -77,170 +107,76 @@ document.addEventListener("DOMContentLoaded", function () {
           generateReport();
         }
       }
-      userInput.value = "";
+      elements.userInput.value = "";
       if (isVoiceInput) {
         lastProcessedResult = "";
       }
     }
   }
 
-  function setupSpeechRecognition() {
-    if ("webkitSpeechRecognition" in window) {
-      recognition = new webkitSpeechRecognition();
-    } else if ("SpeechRecognition" in window) {
-      recognition = new SpeechRecognition();
-    } else {
-      console.error("음성 인식이 지원되지 않는 브라우저입니다.");
+  function handleKeyPress(e) {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  }
+
+  // 메시지 큐 처리
+  function processMessageQueue() {
+    if (isProcessing() || messageQueue.length === 0) {
       return;
     }
 
-    recognition.lang = "ko-KR";
-    recognition.interimResults = true;
-    recognition.continuous = true;
+    setProcessing(true);
+    const message = messageQueue.shift();
+    addMessage(message, true);
 
-    recognition.onstart = function () {
-      console.log("음성 인식이 시작되었습니다.");
-      isListening = true;
-      voiceBtn.classList.add("active");
-      voiceBtn.classList.add("voice-active");
-    };
-  
-    recognition.onend = function () {
-      console.log("음성 인식이 종료되었습니다.");
-      isListening = false;
-      hasSpeechStarted = false;
-      voiceBtn.classList.remove("active");
-      voiceBtn.classList.remove("voice-active");
-  
-      if (userInput.value.trim() !== "" && userInput.value.trim() !== lastProcessedResult) {
-        lastProcessedResult = userInput.value.trim();
-        sendMessage(lastProcessedResult);
-      }
-  
-      if (isAutoMicOn && !isAITalking && !isLoading) {
-        startListening();
-      }
-    };
-  
-    recognition.onresult = function (event) {
-      clearTimeout(silenceTimer);
-  
-      let currentTranscript = "";
-  
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          currentTranscript += event.results[i][0].transcript + " ";
+    const loadingDiv = addLoadingAnimation();
+    setLoading(true);
+    setAITalking(true);
+    stopListening();
+
+    sendMessageToServer(message)
+      .then((data) => {
+        if (data.success) {
+          addMessage(data.message, false, data.audio);
+        } else {
+          throw new Error("서버에서 오류 응답을 받았습니다.");
         }
-      }
-  
-      userInput.value = currentTranscript.trim();
-  
-      if (currentTranscript.trim() !== lastProcessedResult.trim()) {
-        if (currentTranscript.trim() !== "") {
-          lastProcessedResult = currentTranscript.trim();
-          sendMessage(lastProcessedResult, true);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        addMessage("네트워크 오류가 발생했습니다. 다시 시도해 주세요.", false);
+      })
+      .finally(() => {
+        removeLoadingAnimation(loadingDiv);
+        setLoading(false);
+        setAITalking(false);
+        setProcessing(false);
+        if (pendingMessage) {
+          showPendingMessageConfirmation();
+        } else {
+          processMessageQueue();
         }
-      }
-  
-      startSilenceTimer();
-    };
-  
-
-    recognition.onspeechend = function () {
-      console.log("음성 입력이 중지되었습니다.");
-      startSilenceTimer();
-    };
-
-    recognition.onend = function () {
-      console.log("음성 인식이 종료되었습니다.");
-      isListening = false;
-      hasSpeechStarted = false;
-      voiceBtn.classList.remove("active");
-      voiceBtn.classList.remove("voice-active");
-
-      if (
-        userInput.value.trim() !== "" &&
-        userInput.value.trim() !== lastProcessedResult
-      ) {
-        lastProcessedResult = userInput.value.trim();
-        sendMessage(lastProcessedResult);
-      }
-
-      if (isAutoMicOn && !isAITalking && !isLoading) {
-        startListening();
-      }
-    };
-
-    recognition.onerror = function (event) {
-      console.error("음성 인식 오류", event.error);
-      stopListening();
-      if (isAutoMicOn) {
-        setTimeout(startListening, 1000);
-      }
-    };
+        if (isAutoMicOn && !isAITalking) {
+          startListening();
+        }
+      });
   }
 
-  function startSilenceTimer() {
-    clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(() => {
-      if (isListening) {
-        console.log("침묵이 감지되어 음성 인식을 중지합니다.");
-        stopListening();
-      }
-    }, silenceThreshold);
+  // 서버에 메시지 전송
+  function sendMessageToServer(message) {
+    return fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: message }),
+    }).then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    });
   }
 
-  function startListening() {
-    if (!recognition) {
-      setupSpeechRecognition();
-    }
-
-    recognition.start();
-    isMicrophoneActive = true;
-    voiceBtn.classList.add("active");
-    console.log("음성 인식이 시작되었습니다.");
-  }
-
-  function stopListening() {
-    if (recognition) {
-      recognition.stop();
-      isMicrophoneActive = false;
-      voiceBtn.classList.remove("active");
-      console.log("음성 인식이 중지되었습니다.");
-    }
-  }
-
-  function addLoadingAnimation() {
-    isLoading = true;
-    if (isAutoMicOn) {
-      stopListening();
-    }
-    const messageDiv = document.createElement("div");
-    messageDiv.className = "message bot-message";
-
-    const loadingDiv = document.createElement("div");
-    loadingDiv.className = "message-bubble loading";
-    loadingDiv.innerHTML = `
-          <div class="loading-dots">
-              <span></span>
-              <span></span>
-              <span></span>
-          </div>
-      `;
-    messageDiv.appendChild(loadingDiv);
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    return messageDiv;
-  }
-
-  function removeLoadingAnimation(loadingDiv) {
-    chatContainer.removeChild(loadingDiv);
-    isLoading = false;
-    if (isAutoMicOn && !isAITalking) {
-      startListening();
-    }
-  }
-
+  // 메시지 추가
   function addMessage(message, isUser, audioData) {
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${isUser ? "user-message" : "bot-message"}`;
@@ -254,137 +190,117 @@ document.addEventListener("DOMContentLoaded", function () {
       const translateBtn = document.createElement("button");
       translateBtn.className = "translate-btn";
       translateBtn.textContent = "Translate";
-      translateBtn.onclick = function () {
-        if (!isTranslating) {
-          this.classList.toggle("active");
-          translateMessage(message, messageDiv, this);
-        } else {
-          console.log("번역이 이미 진행 중입니다.");
-        }
-      };
+      translateBtn.onclick = () =>
+        translateMessage(message, messageDiv, translateBtn);
       messageDiv.appendChild(translateBtn);
     }
 
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    elements.chatContainer.appendChild(messageDiv);
+    elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
 
     if (!isUser && audioData) {
       playAudio(audioData);
     }
   }
 
-  function showPendingMessageNotification() {
-    // 알림 UI를 표시하는 로직 (예: 작은 팝업 또는 버튼)
-    const notification = document.createElement("div");
-    notification.id = "pending-message-notification";
-    notification.textContent = "대기 중인 메시지가 있습니다";
-    notification.style.display = "none";
-    document.body.appendChild(notification);
-  }
-
-  function showPendingMessageConfirmation() {
-    if (pendingMessage) {
-      if (confirm(`Do you want to send this message? "${pendingMessage}"`)) {
-        sendMessage(pendingMessage);
-      }
-      pendingMessage = null;
-      document.getElementById("pending-message-notification").style.display =
-        "none";
-    }
-  }
-
-  function processMessageQueue() {
-    if (isProcessing || messageQueue.length === 0) {
-      return;
-    }
-
-    isProcessing = true;
-    const message = messageQueue.shift();
-    addMessage(message, true);
-
-    const loadingDiv = addLoadingAnimation();
-    isLoading = true;
-    isAITalking = true;
-    stopListening();
-
-    fetch("/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: message }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        removeLoadingAnimation(loadingDiv);
-        isLoading = false;
-        if (data.success) {
-          addMessage(data.message, false, data.audio);
-        } else {
-          throw new Error("서버에서 오류 응답을 받았습니다.");
-        }
-      })
-      .catch((error) => {
-        removeLoadingAnimation(loadingDiv);
-        isLoading = false;
-        isAITalking = false;
-        console.error("Error:", error);
-        addMessage("네트워크 오류가 발생했습니다. 다시 시도해 주세요.", false);
-        if (isAutoMicOn) {
-          startListening();
-        }
-      })
-      .finally(() => {
-        isProcessing = false;
-        if (pendingMessage) {
-          showPendingMessageConfirmation();
-        } else {
-          processMessageQueue();
-        }
-      });
-  }
-
+  // 오디오 재생
   function playAudio(audioData) {
-    isAITalking = true;
+    setAITalking(true);
     if (isListening) {
       stopListening();
     }
     currentAudio = new Audio("data:audio/mp3;base64," + audioData);
     currentAudio.play().catch((error) => {
       console.error("오디오 재생 오류:", error);
-      isAITalking = false;
+      setAITalking(false);
       if (isAutoMicOn) {
         startListening();
       }
     });
-    currentAudio.onended = function () {
+    currentAudio.onended = () => {
       currentAudio = null;
-      isAITalking = false;
+      setAITalking(false);
       if (isAutoMicOn) {
         startListening();
       }
     };
   }
 
-  function stopAITalking() {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
+  // 음성 인식 설정
+  function setupSpeechRecognition() {
+    if (
+      !("webkitSpeechRecognition" in window) &&
+      !("SpeechRecognition" in window)
+    ) {
+      console.error("음성 인식이 지원되지 않는 브라우저입니다.");
+      return;
     }
-    isAITalking = false;
-    isLoading = false;
-    console.log("AI 발화가 중지되었습니다.");
-    if (pendingMessage) {
-      showPendingMessageConfirmation();
+
+    recognition = new (window.SpeechRecognition ||
+      window.webkitSpeechRecognition)();
+    recognition.lang = "ko-KR";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    recognition.onstart = () => {
+      console.log("음성 인식이 시작되었습니다.");
+      setListening(true);
+      elements.voiceBtn.classList.add("active", "voice-active");
+    };
+
+    recognition.onend = () => {
+      console.log("음성 인식이 종료되었습니다.");
+      setListening(false);
+      elements.voiceBtn.classList.remove("active", "voice-active");
+
+      if (
+        elements.userInput.value.trim() !== "" &&
+        elements.userInput.value.trim() !== lastProcessedResult
+      ) {
+        lastProcessedResult = elements.userInput.value.trim();
+        sendMessage(lastProcessedResult, true);
+      }
+
+      if (isAutoMicOn && !isAITalking && !isLoading) {
+        startListening();
+      }
+    };
+
+    recognition.onresult = handleSpeechResult;
+    recognition.onerror = handleSpeechError;
+  }
+
+  // 음성 인식 결과 처리
+  function handleSpeechResult(event) {
+    let currentTranscript = "";
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        currentTranscript += event.results[i][0].transcript + " ";
+      }
+    }
+
+    elements.userInput.value = currentTranscript.trim();
+
+    if (currentTranscript.trim() !== lastProcessedResult.trim()) {
+      if (currentTranscript.trim() !== "") {
+        lastProcessedResult = currentTranscript.trim();
+        sendMessage(lastProcessedResult, true);
+      }
     }
   }
 
-  voiceBtn.addEventListener("click", function () {
+  // 음성 인식 오류 처리
+  function handleSpeechError(event) {
+    console.error("음성 인식 오류:", event.error);
+    stopListening();
+    if (isAutoMicOn) {
+      setTimeout(startListening, 1000);
+    }
+  }
+
+  // 음성 인식 토글
+  function toggleVoiceRecognition() {
     if (isAITalking || isLoading) {
       stopAITalking();
       return;
@@ -394,24 +310,175 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       startListening();
     }
-  });
+  }
 
+  // 자동 마이크 토글
+  function toggleAutoMic() {
+    isAutoMicOn = !isAutoMicOn;
+    elements.autoMicToggle.textContent = isAutoMicOn
+      ? "Auto Mic: ON"
+      : "Auto Mic: OFF";
+    elements.autoMicToggle.classList.toggle("active");
+    if (isAutoMicOn && !isAITalking && !isLoading) {
+      startListening();
+    } else if (!isAutoMicOn) {
+      stopListening();
+    }
+  }
+
+  // 음성 인식 시작
+  function startListening() {
+    if (!recognition) {
+      setupSpeechRecognition();
+    }
+    recognition.start();
+    setListening(true);
+    elements.voiceBtn.classList.add("active");
+    console.log("음성 인식이 시작되었습니다.");
+  }
+
+  // 음성 인식 중지
+  function stopListening() {
+    if (recognition) {
+      recognition.stop();
+      setListening(false);
+      elements.voiceBtn.classList.remove("active");
+      console.log("음성 인식이 중지되었습니다.");
+    }
+  }
+
+  // AI 발화 중지
+  function stopAITalking() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    setAITalking(false);
+    setLoading(false);
+    console.log("AI 발화가 중지되었습니다.");
+    if (pendingMessage) {
+      showPendingMessageConfirmation();
+    }
+  }
+
+  // 로딩 애니메이션 추가
+  function addLoadingAnimation() {
+    setLoading(true);
+    if (isAutoMicOn) {
+      stopListening();
+    }
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "message bot-message";
+
+    const loadingDiv = document.createElement("div");
+    loadingDiv.className = "message-bubble loading";
+    loadingDiv.innerHTML = `
+      <div class="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    `;
+    messageDiv.appendChild(loadingDiv);
+    elements.chatContainer.appendChild(messageDiv);
+    elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+    return messageDiv;
+  }
+
+  // 로딩 애니메이션 제거
+  function removeLoadingAnimation(loadingDiv) {
+    elements.chatContainer.removeChild(loadingDiv);
+    setLoading(false);
+    if (isAutoMicOn && !isAITalking) {
+      startListening();
+    }
+  }
+
+  // 번역 기능
+  function translateMessage(message, messageDiv, translateBtn) {
+    if (isTranslating) {
+      console.log("번역이 이미 진행 중입니다.");
+      return;
+    }
+
+    const existingTranslation = messageDiv.querySelector(".translation");
+    if (existingTranslation) {
+      existingTranslation.style.display =
+        existingTranslation.style.display === "none" ? "block" : "none";
+      return;
+    }
+
+    setTranslating(true);
+    translateBtn.disabled = true;
+
+    const loadingDiv = addTranslationLoadingAnimation(messageDiv);
+
+    fetch("/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: message }),
+    })
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (data.translation) {
+          const translationDiv = document.createElement("div");
+          translationDiv.className = "translation";
+          translationDiv.textContent = data.translation;
+          messageDiv.appendChild(translationDiv);
+          translationDiv.style.display = "block";
+          elements.chatContainer.scrollTop =
+            elements.chatContainer.scrollHeight;
+        } else {
+          throw new Error("번역 데이터가 없습니다.");
+        }
+      })
+      .catch((error) => {
+        console.error("Translation error:", error);
+        addMessage("번역 중 오류가 발생했습니다. 다시 시도해 주세요.", false);
+        translateBtn.classList.remove("active");
+      })
+      .finally(() => {
+        removeTranslationLoadingAnimation(loadingDiv);
+        setTranslating(false);
+        translateBtn.disabled = false;
+      });
+  }
+
+  // 번역 로딩 애니메이션 추가
+  function addTranslationLoadingAnimation(container) {
+    const loadingDiv = document.createElement("div");
+    loadingDiv.className = "loading-animation";
+    loadingDiv.innerHTML = '<div class="boxLoading"></div>';
+    container.appendChild(loadingDiv);
+    return loadingDiv;
+  }
+
+  // 번역 로딩 애니메이션 제거
+  function removeTranslationLoadingAnimation(loadingDiv) {
+    if (loadingDiv && loadingDiv.parentNode) {
+      loadingDiv.parentNode.removeChild(loadingDiv);
+    }
+  }
+
+  // 로그인 함수
   function login() {
     const username = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
 
     fetch("/login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: username, password: password }),
     })
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
-          isLoggedIn = true;
-          authModal.style.display = "none";
+          setLoggedIn(true);
+          elements.authModal.style.display = "none";
           updateUserId(username);
           sessionStartTime = new Date();
           startUsageTracking();
@@ -428,51 +495,30 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  function isValidEmail(email) {
-    const re =
-      /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return re.test(String(email).toLowerCase());
-  }
-
+  // 회원가입 함수
   function signup() {
     const username = document.getElementById("signup-username").value.trim();
     const email = document.getElementById("signup-email").value.trim();
     const password = document.getElementById("signup-password").value;
 
     if (!username || !email || !password) {
-      setMessage("Please fill in all fields.", "success");
-      return;
-    }
-
-    if (!email) {
-      setMessage(
-        "Buddy, don't tell me you don't have an email? It's the 21st century.",
-        "success"
-      );
+      setMessage("Please fill in all fields.", "error");
       return;
     }
 
     if (!isValidEmail(email)) {
-      setMessage(
-        "The email format is wrong. Hey friend, don't you know email formats in the 21st century?",
-        "success"
-      );
+      setMessage("Please enter a valid email address.", "error");
       return;
     }
 
     if (password.length < 4) {
-      sendMessage(
-        `What? Seriously? A ${password.length}-character password? Please make it longer. (At least 4 characters)`,
-        "error"
-      );
+      setMessage("Password must be at least 4 characters long.", "error");
       return;
     }
 
     fetch("/signup", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: username,
         email: email,
@@ -483,28 +529,36 @@ document.addEventListener("DOMContentLoaded", function () {
       .then((data) => {
         if (data.success) {
           setMessage("Sign up successful. Please log in.", "success");
-          showLoginLink.click();
+          showLoginForm();
         } else if (data.error === "username_taken") {
           setMessage(
-            `Okay, ${username} is good name, but someone's already using it. Life is first come, first served.`,
-            "success"
+            "Username is already taken. Please choose another.",
+            "error"
           );
         } else {
           setMessage(
-            "The email is duplicated. Do you already have an account?",
+            "Email is already registered. Do you already have an account?",
             "error"
           );
         }
       })
       .catch((error) => {
         console.error("Signup error:", error);
-        sendMessage(
+        setMessage(
           "An error occurred during sign up. Please try again.",
           "error"
         );
       });
   }
 
+  // 이메일 유효성 검사
+  function isValidEmail(email) {
+    const re =
+      /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+  }
+
+  // 사용 시간 추적 시작
   function startUsageTracking() {
     setInterval(() => {
       const currentTime = new Date();
@@ -513,12 +567,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 60000);
   }
 
+  // 사용 시간 업데이트
   function updateUsageTime(time) {
     fetch("/update_usage_time", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ time: time }),
     })
       .then((response) => response.json())
@@ -532,268 +585,94 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  function stopAITalking() {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-    isAITalking = false;
-    isLoading = false;
-    console.log("AI 발화가 중지되었습니다.");
-  }
-
-  function translateMessage(message, messageDiv, translateBtn) {
-    if (isTranslating) {
-      console.log("번역이 이미 진행 중입니다.");
-      return;
-    }
-
-    const existingTranslation = messageDiv.querySelector(".translation");
-    if (existingTranslation) {
-      existingTranslation.style.display =
-        existingTranslation.style.display === "none" ? "block" : "none";
-      return;
-    }
-
-    isTranslating = true;
-    translateBtn.disabled = true;
-
-    const loadingDiv = addTranslationLoadingAnimation(messageDiv);
-
-    fetch("/translate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: message }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data.translation) {
-          const translationDiv = document.createElement("div");
-          translationDiv.className = "translation";
-          translationDiv.textContent = data.translation;
-          messageDiv.appendChild(translationDiv);
-          translationDiv.style.display = "block";
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        } else {
-          throw new Error("번역 데이터가 없습니다.");
-        }
-      })
-      .catch((error) => {
-        console.error("Translation error:", error);
-        addMessage("번역 중 오류가 발생했습니다. 다시 시도해 주세요.", false);
-        translateBtn.classList.remove("active");
-      })
-      .finally(() => {
-        removeTranslationLoadingAnimation(loadingDiv);
-        isTranslating = false;
-        translateBtn.disabled = false;
-      });
-  }
-
-  function addTranslationLoadingAnimation(container) {
-    const loadingDiv = document.createElement("div");
-    loadingDiv.className = "loading-animation";
-    loadingDiv.innerHTML = '<div class="boxLoading"></div>';
-    container.appendChild(loadingDiv);
-    return loadingDiv;
-  }
-
-  function removeTranslationLoadingAnimation(loadingDiv) {
-    if (loadingDiv && loadingDiv.parentNode) {
-      loadingDiv.parentNode.removeChild(loadingDiv);
-    }
-  }
-
-  function updateUserId(username) {
-    userId.textContent = username;
-  }
-
-  function displayHistory(history) {
-    console.log("Displaying history", history);
-    if (!historyContainer) {
-      console.error("History container not found");
-      return;
-    }
-    historyContainer.innerHTML = "";
-    let currentDate = null;
-    history.forEach((item) => {
-      if (item.date !== currentDate) {
-        currentDate = item.date;
-        const dateElement = document.createElement("div");
-        dateElement.className = "history-date";
-        dateElement.textContent = currentDate;
-        historyContainer.appendChild(dateElement);
-      }
-      item.messages.forEach((msg) => {
-        const messageDiv = document.createElement("div");
-        messageDiv.className = `message ${
-          msg.is_user ? "user-message" : "bot-message"
-        }`;
-        messageDiv.innerHTML = `
-                <div class="message-bubble">
-                    ${msg.content}
-                </div>
-                <div class="message-time">${msg.timestamp}</div>
-            `;
-        historyContainer.appendChild(messageDiv);
-      });
-    });
-  }
-
-  function loadHistory(date = null) {
-    if (isLoadingHistory) return;
-    isLoadingHistory = true;
-    loadingHistory.style.display = "block";
-
-    fetch(`/get_history?date=${date || ""}`)
+  // 로그인 상태 확인
+  function checkLoginStatus() {
+    fetch("/check_login")
       .then((response) => response.json())
       .then((data) => {
-        displayHistory(data.history);
-        isLoadingHistory = false;
-        loadingHistory.style.display = "none";
+        if (data.logged_in) {
+          setLoggedIn(true);
+          updateUserId(data.username);
+          elements.authModal.style.display = "none";
+        } else {
+          showLoginForm();
+        }
       })
       .catch((error) => {
-        console.error("Error loading history:", error);
-        isLoadingHistory = false;
-        loadingHistory.style.display = "none";
+        console.error("로그인 상태 확인 오류:", error);
+        showLoginForm();
       });
   }
 
-  function addHistoryMessage(msg) {
-    const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${
-      msg.is_user ? "user-message" : "bot-message"
-    }`;
-    messageDiv.innerHTML = `
-      <div class="message-bubble">
-        ${msg.content}
-      </div>
-      <div class="message-time">${msg.timestamp}</div>
-    `;
-    historyContainer.appendChild(messageDiv);
+  // 로그아웃 함수
+  function logout() {
+    fetch("/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          setLoggedIn(false);
+          showLoginForm();
+          closeSidebar();
+        }
+      })
+      .catch((error) => console.error("Logout error:", error));
   }
 
-  sendBtn.addEventListener("click", () => {
-    const message = userInput.value.trim();
-    if (message !== "") {
-      sendMessage(message);
-    }
-  });
-
-  userInput.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") {
-      const message = userInput.value.trim();
-      if (message !== "") {
-        sendMessage(message);
-      }
-    }
-  });
-
-  function clearAuthMessage() {
-    const authMessage = document.getElementById("auth-message");
-    if (authMessage) {
-      authMessage.textContent = "";
-      authMessage.className = ""; // 클래스도 제거합니다 (에러/성공 스타일 초기화)
-    }
+  // 사용자 ID 업데이트
+  function updateUserId(username) {
+    elements.userId.textContent = username;
   }
 
-  showSignupLink.addEventListener("click", function (e) {
+  // 메시지 설정
+  function setMessage(message, type) {
+    elements.authMessage.textContent = message;
+    elements.authMessage.className = type ? type + "-message" : "";
+  }
+
+  // 로그인 폼 표시
+  function showLoginForm() {
+    clearAuthMessage();
+    elements.modalTitle.textContent = "Login";
+    elements.loginForm.style.display = "block";
+    elements.signupForm.style.display = "none";
+    elements.forgotPasswordForm.style.display = "none";
+    elements.authModal.style.display = "block";
+  }
+
+  // 회원가입 폼 표시
+  function showSignupForm(e) {
     e.preventDefault();
     clearAuthMessage();
-    modalTitle.textContent = "Sign Up";
-    loginForm.style.display = "none";
-    signupForm.style.display = "block";
-  });
+    elements.modalTitle.textContent = "Sign Up";
+    elements.loginForm.style.display = "none";
+    elements.signupForm.style.display = "block";
+    elements.forgotPasswordForm.style.display = "none";
+  }
 
-  showLoginLink.addEventListener("click", function (e) {
+  // 비밀번호 재설정 폼 표시
+  function showForgotPasswordForm(e) {
     e.preventDefault();
     clearAuthMessage();
-    modalTitle.textContent = "Login";
-    signupForm.style.display = "none";
-    loginForm.style.display = "block";
-  });
+    elements.loginForm.style.display = "none";
+    elements.signupForm.style.display = "none";
+    elements.forgotPasswordForm.style.display = "block";
+    elements.modalTitle.textContent = "Reset Password";
+  }
 
-  voiceBtn.addEventListener("click", function () {
-    if (isAITalking || isLoading) {
-      stopAITalking();
-      return;
-    }
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  });
-
-  autoMicToggle.addEventListener("click", function () {
-    isAutoMicOn = !isAutoMicOn;
-    autoMicToggle.textContent = isAutoMicOn ? "Auto Mic: ON" : "Auto Mic: OFF";
-    autoMicToggle.classList.toggle("active");
-    if (isAutoMicOn && !isAITalking && !isLoading) {
-      startListening();
-    } else if (!isAutoMicOn) {
-      stopListening();
-    }
-  });
-
-  loginBtn.addEventListener("click", login);
-  signupBtn.addEventListener("click", signup);
-
-  menuIcon.addEventListener("click", function () {
-    sidebar.style.width = "50%";
-  });
-
-  closeSidebar.addEventListener("click", function () {
-    sidebar.style.width = "0";
-  });
-
-  showHistory.addEventListener("click", function () {
-    historyModal.style.display = "block";
-    historyContainer.innerHTML = "<p>Loading history...</p>";
-    currentDate = null;
-    loadHistory();
-    console.log("History modal opened"); // 디버깅용 로그
-  });
-
-  closeHistory.addEventListener("click", function () {
-    historyModal.style.display = "none";
-  });
-
-  historyContainer.addEventListener("scroll", () => {
-    if (historyContainer.scrollTop === 0 && !isLoadingHistory) {
-      loadHistory(currentDate);
-    }
-  });
-
-  // 비밀번호 찾기 관련 이벤트 리스너
-  showForgotPasswordLink.addEventListener("click", function (e) {
+  // 로그인 폼으로 돌아가기
+  function backToLogin(e) {
     e.preventDefault();
     clearAuthMessage();
-    loginForm.style.display = "none";
-    signupForm.style.display = "none";
-    forgotPasswordForm.style.display = "block";
-    modalTitle.textContent = "Reset Password";
-  });
+    showLoginForm();
+  }
 
-  backToLoginLink.addEventListener("click", function (e) {
-    e.preventDefault();
-    clearAuthMessage();
-    forgotPasswordForm.style.display = "none";
-    loginForm.style.display = "block";
-    modalTitle.textContent = "Login";
-  });
-
-  resetPasswordBtn.addEventListener("click", function () {
+  // 비밀번호 재설정
+  function resetPassword() {
     const email = document.getElementById("reset-email").value;
     const loadingAnimation = document.getElementById("loading-animation");
-    const authMessage = document.getElementById("auth-message");
 
     if (!isValidEmail(email)) {
       setMessage("Please enter a valid email address.", "error");
@@ -801,23 +680,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     loadingAnimation.style.display = "block";
-    resetPasswordBtn.disabled = true;
-    clearMessage();
+    elements.resetPasswordBtn.disabled = true;
+    clearAuthMessage();
 
     fetch("/request_reset", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email }),
     })
       .then((response) => response.json())
       .then((data) => {
-        if (data.message === "Reset link sent to your email") {
-          setMessage(data.message, "success");
-        } else {
-          setMessage(data.message, "error");
-        }
+        setMessage(
+          data.message,
+          data.message === "Reset link sent to your email" ? "success" : "error"
+        );
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -825,84 +701,87 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .finally(() => {
         loadingAnimation.style.display = "none";
-        resetPasswordBtn.disabled = false;
+        elements.resetPasswordBtn.disabled = false;
       });
-  });
-
-  function setMessage(message, type) {
-    const authMessage = document.getElementById("auth-message");
-    authMessage.textContent = message;
-    authMessage.className = type ? type + "-message" : "";
   }
 
-  function clearMessage() {
-    const authMessage = document.getElementById("auth-message");
-    authMessage.textContent = "";
-    authMessage.className = "";
+  // 인증 메시지 초기화
+  function clearAuthMessage() {
+    elements.authMessage.textContent = "";
+    elements.authMessage.className = "";
   }
-  function checkLoginStatus() {
-    fetch("/check_login")
+
+  // 사이드바 열기
+  function openSidebar() {
+    elements.sidebar.style.width = "50%";
+  }
+
+  // 사이드바 닫기
+  function closeSidebar() {
+    elements.sidebar.style.width = "0";
+  }
+
+  // 히스토리 모달 표시
+  function showHistoryModal() {
+    elements.historyModal.style.display = "block";
+    elements.historyContainer.innerHTML = "<p>Loading history...</p>";
+    loadHistory();
+  }
+
+  // 히스토리 모달 닫기
+  function closeHistoryModal() {
+    elements.historyModal.style.display = "none";
+  }
+
+  // 히스토리 로드
+  function loadHistory(date = null) {
+    if (isLoadingHistory) return;
+    setLoadingHistory(true);
+    elements.loadingHistory.style.display = "block";
+
+    fetch(`/get_history?date=${date || ""}`)
       .then((response) => response.json())
       .then((data) => {
-        if (data.logged_in) {
-          isLoggedIn = true;
-          updateUserId(data.username);
-          authModal.style.display = "none";
-        } else {
-          showLoginForm();
-        }
+        displayHistory(data.history);
+        setLoadingHistory(false);
+        elements.loadingHistory.style.display = "none";
       })
       .catch((error) => {
-        console.error("Error:", error);
-        showLoginForm();
+        console.error("Error loading history:", error);
+        setLoadingHistory(false);
+        elements.loadingHistory.style.display = "none";
       });
   }
 
-  function showLoginForm() {
-    authModal.style.display = "block";
-    modalTitle.textContent = "Login";
-    loginForm.style.display = "block";
-    signupForm.style.display = "none";
+  // 히스토리 표시
+  function displayHistory(history) {
+    elements.historyContainer.innerHTML = "";
+    let currentDate = null;
+    history.forEach((item) => {
+      if (item.date !== currentDate) {
+        currentDate = item.date;
+        const dateElement = document.createElement("div");
+        dateElement.className = "history-date";
+        dateElement.textContent = currentDate;
+        elements.historyContainer.appendChild(dateElement);
+      }
+      item.messages.forEach((msg) => {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${
+          msg.is_user ? "user-message" : "bot-message"
+        }`;
+        messageDiv.innerHTML = `
+          <div class="message-bubble">${msg.content}</div>
+          <div class="message-time">${msg.timestamp}</div>
+        `;
+        elements.historyContainer.appendChild(messageDiv);
+      });
+    });
   }
 
-  // 페이지 로드 시 로그인 상태 확인
-  checkLoginStatus();
-
-  // 로그아웃 함수 수정
-  function logout() {
-    fetch("/logout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          isLoggedIn = false;
-          showLoginForm();
-          sidebar.style.width = "0"; // 사이드바 닫기
-        }
-      })
-      .catch((error) => console.error("Logout error:", error));
-  }
-  // 로그아웃 버튼에 이벤트 리스너 추가
-  const logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", logout);
-  }
-
-  function checkMessageCount() {
-    messageCount++;
-    if (messageCount % 2 === 0) {
-      generateReport();
-    }
-  }
-
+  // 보고서 생성
   function generateReport() {
-    fetch("/generate_report", {
-      method: "POST",
-    })
+    fetch("/generate_report", { method: "POST" })
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
@@ -913,30 +792,34 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch((error) => console.error("Error generating report:", error));
   }
 
-  showReports.addEventListener("click", function () {
-    reportsModal.style.display = "block";
+  // 보고서 모달 표시
+  function showReportsModal() {
+    elements.reportsModal.style.display = "block";
     loadReports();
-  });
+  }
 
-  closeReports.addEventListener("click", function () {
-    reportsModal.style.display = "none";
-  });
+  // 보고서 모달 닫기
+  function closeReportsModal() {
+    elements.reportsModal.style.display = "none";
+  }
 
+  // 보고서 로드
   function loadReports() {
     fetch("/get_reports")
       .then((response) => response.json())
       .then((reports) => {
-        reportsContainer.innerHTML = "";
+        elements.reportsContainer.innerHTML = "";
         reports.forEach((report) => {
           const reportButton = document.createElement("button");
           reportButton.textContent = `Report ${report.report_number}`;
           reportButton.onclick = () => showReportContent(report);
-          reportsContainer.appendChild(reportButton);
+          elements.reportsContainer.appendChild(reportButton);
         });
       })
       .catch((error) => console.error("Error loading reports:", error));
   }
 
+  // 보고서 내용 표시
   function showReportContent(report) {
     const contentDiv = document.createElement("div");
     contentDiv.innerHTML = `
@@ -947,18 +830,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const closeButton = document.createElement("button");
     closeButton.textContent = "Close";
-    closeButton.onclick = () => loadReports();
+    closeButton.onclick = loadReports;
 
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete Report";
     deleteButton.onclick = () => deleteReport(report.id);
 
-    reportsContainer.innerHTML = "";
-    reportsContainer.appendChild(contentDiv);
-    reportsContainer.appendChild(closeButton);
-    reportsContainer.appendChild(deleteButton);
+    elements.reportsContainer.innerHTML = "";
+    elements.reportsContainer.appendChild(contentDiv);
+    elements.reportsContainer.appendChild(closeButton);
+    elements.reportsContainer.appendChild(deleteButton);
   }
 
+  // 보고서 삭제
   function deleteReport(reportId) {
     if (confirm("Are you sure you want to delete this report?")) {
       fetch(`/delete_report/${reportId}`, { method: "DELETE" })
@@ -974,34 +858,110 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  showVocabulary.addEventListener("click", function () {
-    vocabularyModal.style.display = "block";
+  // 어휘 모달 표시
+  function showVocabularyModal() {
+    elements.vocabularyModal.style.display = "block";
     loadVocabulary();
-  });
+  }
 
-  closeVocabulary.addEventListener("click", function () {
-    vocabularyModal.style.display = "none";
-  });
+  // 어휘 모달 닫기
+  function closeVocabularyModal() {
+    elements.vocabularyModal.style.display = "none";
+  }
 
+  // 어휘 로드
+  // 어휘 로드
   function loadVocabulary() {
     fetch("/get_vocabulary")
       .then((response) => response.json())
       .then((vocabulary) => {
-        vocabularyContainer.innerHTML = "";
+        elements.vocabularyContainer.innerHTML = "";
         vocabulary.forEach((item) => {
           const wordElement = document.createElement("div");
-          wordElement.innerHTML = `
-            <strong>${item.word}</strong>: ${item.count}
-          `;
-          vocabularyContainer.appendChild(wordElement);
+          wordElement.innerHTML = `<strong>${item.word}</strong>: ${item.count}`;
+          elements.vocabularyContainer.appendChild(wordElement);
         });
       })
       .catch((error) => console.error("Error loading vocabulary:", error));
   }
 
-  setupSpeechRecognition();
-  modalTitle.textContent = "Login";
-  loginForm.style.display = "block";
-  signupForm.style.display = "none";
-  authModal.style.display = "block";
-});
+  // 상태 변경 함수들
+  function setLoggedIn(value) {
+    isLoggedIn = value;
+  }
+
+  function setListening(value) {
+    isListening = value;
+  }
+
+  function setAITalking(value) {
+    isAITalking = value;
+  }
+
+  function setLoading(value) {
+    isLoading = value;
+  }
+
+  function setTranslating(value) {
+    isTranslating = value;
+  }
+
+  function setLoadingHistory(value) {
+    isLoadingHistory = value;
+  }
+
+  function isProcessing() {
+    return isLoading || isAITalking;
+  }
+
+  function setProcessing(value) {
+    isLoading = value;
+    isAITalking = value;
+  }
+
+  // 대기 중인 메시지 알림 표시
+  function showPendingMessageNotification() {
+    const notification = document.createElement("div");
+    notification.id = "pending-message-notification";
+    notification.textContent = "대기 중인 메시지가 있습니다";
+    notification.style.display = "block";
+    document.body.appendChild(notification);
+  }
+
+  // 대기 중인 메시지 확인
+  function showPendingMessageConfirmation() {
+    if (pendingMessage) {
+      if (confirm(`Do you want to send this message? "${pendingMessage}"`)) {
+        sendMessage(pendingMessage);
+      }
+      pendingMessage = null;
+      const notification = document.getElementById(
+        "pending-message-notification"
+      );
+      if (notification) {
+        notification.style.display = "none";
+      }
+    }
+  }
+
+  // 공개 메서드
+  return {
+    init: init,
+    sendMessage: sendMessage,
+    toggleVoiceRecognition: toggleVoiceRecognition,
+    toggleAutoMic: toggleAutoMic,
+    login: login,
+    signup: signup,
+    logout: logout,
+    showLoginForm: showLoginForm,
+    showSignupForm: showSignupForm,
+    showForgotPasswordForm: showForgotPasswordForm,
+    resetPassword: resetPassword,
+    showHistoryModal: showHistoryModal,
+    showReportsModal: showReportsModal,
+    showVocabularyModal: showVocabularyModal,
+  };
+})();
+
+// DOM이 로드된 후 앱 초기화
+document.addEventListener("DOMContentLoaded", ChatApp.init);

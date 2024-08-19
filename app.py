@@ -293,7 +293,6 @@ def summarize_news(news_content, max_tokens=100):
             {"role": "user", "content": summary_prompt}
         ],
         max_tokens=max_tokens,
-        temperature=0.7
     )
     return response.choices[0].message.content
 
@@ -334,8 +333,7 @@ def get_news_summary():
             {"role": "user", "content": prompt}
         ],
         max_tokens=350,
-        temperature=0.7
-    )
+        )
     
     messages = [msg.strip() for msg in response.choices[0].message.content.split('---') if msg.strip()]
     return messages
@@ -443,7 +441,7 @@ def chat():
 
 사용자 메시지: {user_message_content}
 
-위 컨텍스트와 사용자 메시지를 고려하여 답변해주세요. 뉴스 내용이 포함되어 있다면 그에 관련지어 자연스럽게 대답해주세요.
+위 컨텍스트와 사용자 메시지를 고려하여 답변해주세요. 앞의 문맥을 그에 관련지어 자연스럽게 대답해주세요. 하지만 뉴스 이야기를 너무 자주 꺼내지는 않습니다. 길게 이야기 하지 않습니다. 메세지가 길다면 짧게 나누어 보냅니다.
 """
 
         messages = [
@@ -454,8 +452,7 @@ def chat():
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            max_tokens=150,
-            temperature=0.7
+            max_tokens=100
         )
         ai_message_content = response.choices[0].message.content
 

@@ -43,15 +43,16 @@ const ChatApp = (function () {
     forgotPasswordForm: document.getElementById("forgot-password-form"),
     backToLoginLink: document.getElementById("back-to-login"),
     resetPasswordBtn: document.getElementById("reset-password-btn"),
-    showReports: document.getElementById("show-reports"),
-    reportsModal: document.getElementById("reports-modal"),
-    closeReports: document.getElementById("close-reports"),
-    reportsContainer: document.getElementById("reports-container"),
-    showVocabulary: document.getElementById("show-vocabulary"),
-    vocabularyModal: document.getElementById("vocabulary-modal"),
-    closeVocabulary: document.getElementById("close-vocabulary"),
-    vocabularyContainer: document.getElementById("vocabulary-container"),
+    // showReports: document.getElementById("show-reports"),
+    // reportsModal: document.getElementById("reports-modal"),
+    // closeReports: document.getElementById("close-reports"),
+    // reportsContainer: document.getElementById("reports-container"),
+    // showVocabulary: document.getElementById("show-vocabulary"),
+    // vocabularyModal: document.getElementById("vocabulary-modal"),
+    // closeVocabulary: document.getElementById("close-vocabulary"),
+    // vocabularyContainer: document.getElementById("vocabulary-container"),
     logoutBtn: document.getElementById("logout-btn"),
+    showTodaysNews: document.getElementById("show-todays-news"),
   };
 
   // 초기화 함수
@@ -85,17 +86,30 @@ const ChatApp = (function () {
     );
     elements.backToLoginLink?.addEventListener("click", backToLogin);
     elements.resetPasswordBtn?.addEventListener("click", resetPassword);
-    elements.showReports?.addEventListener("click", showReportsModal);
-    elements.closeReports?.addEventListener("click", closeReportsModal);
-    elements.showVocabulary?.addEventListener("click", showVocabularyModal);
-    elements.closeVocabulary?.addEventListener("click", closeVocabularyModal);
+    // elements.showReports?.addEventListener("click", showReportsModal);
+    // elements.closeReports?.addEventListener("click", closeReportsModal);
+    // elements.showVocabulary?.addEventListener("click", showVocabularyModal);
+    // elements.closeVocabulary?.addEventListener("click", closeVocabularyModal);
     elements.logoutBtn?.addEventListener("click", logout);
+    elements.showTodaysNews?.addEventListener("click", showTodaysNews);
+    elements.sendBtn?.addEventListener("click", sendMessage);
+    elements.userInput?.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        sendMessage(e);
+      }
+    });
   }
 
   // 메시지 전송 함수
-  function sendMessage(message, isVoiceInput = false) {
-    message = message || elements.userInput.value.trim();
+  function sendMessage(event) {
+    // event 매개변수가 존재하면 기본 동작을 막습니다.
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
+
+    const message = elements.userInput.value.trim();
     if (message) {
+      // 메시지가 비어있지 않은 경우에만 처리
       if (isProcessing()) {
         pendingMessage = message;
         showPendingMessageNotification();
@@ -103,14 +117,8 @@ const ChatApp = (function () {
         messageQueue.push(message);
         processMessageQueue();
         messageCount++;
-        if (messageCount % REPORT_INTERVAL === 0) {
-          generateReport();
-        }
       }
       elements.userInput.value = "";
-      if (isVoiceInput) {
-        lastProcessedResult = "";
-      }
     }
   }
 
@@ -779,110 +787,19 @@ const ChatApp = (function () {
     });
   }
 
-  // 보고서 생성
-  function generateReport() {
-    fetch("/generate_report", { method: "POST" })
+  // 오늘의 뉴스 표시
+  function showTodaysNews() {
+    fetch("/get_news")
       .then((response) => response.json())
       .then((data) => {
-        if (data.success) {
-          alert("New report generated!");
-          loadReports();
-        }
-      })
-      .catch((error) => console.error("Error generating report:", error));
-  }
-
-  // 보고서 모달 표시
-  function showReportsModal() {
-    elements.reportsModal.style.display = "block";
-    loadReports();
-  }
-
-  // 보고서 모달 닫기
-  function closeReportsModal() {
-    elements.reportsModal.style.display = "none";
-  }
-
-  // 보고서 로드
-  function loadReports() {
-    fetch("/get_reports")
-      .then((response) => response.json())
-      .then((reports) => {
-        elements.reportsContainer.innerHTML = "";
-        reports.forEach((report) => {
-          const reportButton = document.createElement("button");
-          reportButton.textContent = `Report ${report.report_number}`;
-          reportButton.onclick = () => showReportContent(report);
-          elements.reportsContainer.appendChild(reportButton);
+        data.messages.forEach((message) => {
+          addMessage(message, false);
         });
       })
-      .catch((error) => console.error("Error loading reports:", error));
-  }
-
-  // 보고서 내용 표시
-  function showReportContent(report) {
-    const contentDiv = document.createElement("div");
-    contentDiv.innerHTML = `
-      <h3>Report ${report.report_number}</h3>
-      <p>Created: ${report.timestamp}</p>
-      <pre>${report.content}</pre>
-    `;
-
-    const closeButton = document.createElement("button");
-    closeButton.textContent = "Close";
-    closeButton.onclick = loadReports;
-
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "Delete Report";
-    deleteButton.onclick = () => deleteReport(report.id);
-
-    elements.reportsContainer.innerHTML = "";
-    elements.reportsContainer.appendChild(contentDiv);
-    elements.reportsContainer.appendChild(closeButton);
-    elements.reportsContainer.appendChild(deleteButton);
-  }
-
-  // 보고서 삭제
-  function deleteReport(reportId) {
-    if (confirm("Are you sure you want to delete this report?")) {
-      fetch(`/delete_report/${reportId}`, { method: "DELETE" })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            loadReports();
-          } else {
-            alert("Failed to delete report");
-          }
-        })
-        .catch((error) => console.error("Error deleting report:", error));
-    }
-  }
-
-  // 어휘 모달 표시
-  function showVocabularyModal() {
-    elements.vocabularyModal.style.display = "block";
-    loadVocabulary();
-  }
-
-  // 어휘 모달 닫기
-  function closeVocabularyModal() {
-    elements.vocabularyModal.style.display = "none";
-  }
-
-  // 어휘 로드
-  // 어휘 로드
-  function loadVocabulary() {
-    fetch("/get_vocabulary")
-      .then((response) => response.json())
-      .then((vocabulary) => {
-        elements.vocabularyContainer.innerHTML = "";
-        vocabulary.forEach((item) => {
-          const wordElement = document.createElement("div");
-          wordElement.innerHTML = `<strong>${item.word}</strong>: ${item.count}`;
-          elements.vocabularyContainer.appendChild(wordElement);
-        });
-      })
-      .catch((error) => console.error("Error loading vocabulary:", error));
+      .catch((error) => {
+        console.error("Error fetching news:", error);
+        addMessage("뉴스를 가져오는 중 오류가 발생했습니다.", false);
+      });
   }
 
   // 상태 변경 함수들
@@ -958,8 +875,7 @@ const ChatApp = (function () {
     showForgotPasswordForm: showForgotPasswordForm,
     resetPassword: resetPassword,
     showHistoryModal: showHistoryModal,
-    showReportsModal: showReportsModal,
-    showVocabularyModal: showVocabularyModal,
+    showTodaysNews: showTodaysNews,
   };
 })();
 

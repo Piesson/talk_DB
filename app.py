@@ -24,9 +24,10 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.form import SecureForm
 from flask.cli import with_appcontext
 from pytz import timezone
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-import numpy as np
+import schedule
+import time
+from bs4 import BeautifulSoup
+import requests
 
 # Flask 애플리케이션 초기화
 app = Flask(__name__)
@@ -69,7 +70,7 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(100), unique=True)
     reset_token_expiration = db.Column(db.DateTime)
     is_admin = db.Column(db.Boolean, default=False)
-    reports = db.relationship('Report', backref='user', lazy=True)
+    # reports = db.relationship('Report', backref='user', lazy=True)
     messages = db.relationship('Message', backref='user', lazy=True)
 
     def set_reset_token(self):
@@ -235,26 +236,91 @@ def analyze_message(message):
     
     return preferences, sentiment
 
-def summarize_conversation(messages, num_clusters=3):
-    """
-    대화 내용을 요약합니다. TF-IDF와 K-means 클러스터링을 사용하여 주요 메시지를 추출합니다.
-    """
-    texts = [msg.content for msg in messages]
+# 크롤링 함수들
+current_news_index = 0
+news_url_list = []
+
+def crawl_main(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        news_list = soup.find_all('div', class_='news_list')
+        articles = []
+        for news in news_list:
+            title_tag = news.find('div', class_='title')
+            if title_tag and title_tag.a:
+                link = title_tag.a['href']
+                full_link = requests.compat.urljoin(url, link)
+                articles.append(full_link)
+        return articles
+    else:
+        print(f"웹 페이지를 불러오지 못했습니다. 상태 코드: {response.status_code}")
+        return []
+
+def news_scrap(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        content_div = soup.find('div', {'id': 'CmAdContent'})
+        if content_div:
+            return content_div.get_text(separator="\n").strip()
+    return "뉴스 내용을 가져오지 못했습니다."
+
+def get_next_news():
+    global current_news_index
+    global news_url_list
     
-    vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-    tfidf_matrix = vectorizer.fit_transform(texts)
+    if not news_url_list or current_news_index >= len(news_url_list):
+        news_url_list = crawl_main("https://www.ytn.co.kr/news/list.php?mcd=0103")
+        current_news_index = 0
     
-    kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(tfidf_matrix)
+    if not news_url_list:
+        return "죄송해, 오늘은 특별한 뉴스가 없네. 다음에 재미있는 소식 있으면 꼭 알려줄게!"
     
-    summaries = []
-    for i in range(num_clusters):
-        cluster_center = kmeans.cluster_centers_[i]
-        distances = np.linalg.norm(tfidf_matrix - cluster_center, axis=1)
-        closest_idx = distances.argmin()
-        summaries.append(texts[closest_idx])
+    current_news_url = news_url_list[current_news_index]
+    current_news_index += 1
     
-    return summaries
+    news_content = news_scrap(current_news_url)
+    
+    return news_content
+
+def get_news_summary():
+    news_content = get_next_news()
+    
+    if news_content == "뉴스 내용을 가져오지 못했습니다.":
+        return ["앗, 이 뉴스를 가져오는데 문제가 있었어. 다음에 다시 시도해볼게!"]
+    
+    prompt = f"""다음 뉴스를 친구에게 말하듯이 요약해줘. 다음 가이드라인을 따라줘:
+1. 뉴스의 주요 내용을 아주 간단하게 요약한 것을 1-2개의 짧은 메시지(50자 이하)로 나눠서 설명해.
+2. 각 메시지는 2문장이하으로 구성해.
+3. 친근하고 캐주얼한 말투를 사용해.
+4. 마지막 메시지에는 간단한 의견이나 질문을 넣어줘.
+5. 각 메시지를 '---'로 구분해줘.
+6. 너 이 소식 들었어? / 와 ~ 이런 일이 있었데 / 오늘 이런 ~ 이런 일이 있었다는데? 같은 친구에게 소신을 전하는 말투를 사용해
+
+뉴스 내용:
+{news_content}
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "넌 친구에게 뉴스 전하는 20대 한국인이야. 편하게 얘기해."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=350,
+        temperature=0.7
+    )
+    
+    # 응답을 '---'를 기준으로 나누고, 빈 문자열 제거
+    messages = [msg.strip() for msg in response.choices[0].message.content.split('---') if msg.strip()]
+    return messages
+
+@app.route('/get_news', methods=['GET'])
+@login_required
+def get_news():
+    news_summary = get_news_summary()
+    return jsonify({"messages": news_summary})
 
 @app.route('/')
 def home():
@@ -343,12 +409,6 @@ def chat():
         recent_messages = Message.query.filter_by(conversation_id=active_conversation.id).order_by(Message.timestamp.desc()).limit(20).all()
         recent_messages.reverse()
 
-        # 대화 요약 생성
-        if len(recent_messages) > 5:
-            conversation_summary = summarize_conversation(recent_messages)
-        else:
-            conversation_summary = [msg.content for msg in recent_messages]
-
         # 사용자 메시지 분석
         preferences, sentiment = analyze_message(user_message_content)
 
@@ -358,7 +418,6 @@ def chat():
             "content": f"{system_message['content']}\n\nAdditional context:\n"
                        f"User interests: {', '.join(preferences)}\n"
                        f"Emotional state: {sentiment}\n"
-                       f"Recent conversation summary: {' '.join(conversation_summary)}"
         }
 
         # OpenAI API에 전송할 메시지 리스트 생성
@@ -602,69 +661,31 @@ class UserConversationsView(BaseView):
 
 admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_conversations'))
 
-class Report(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    report_number = db.Column(db.Integer, nullable=False)
 
-    @classmethod
-    def get_next_report_number(cls, user_id):
-        last_report = cls.query.filter_by(user_id=user_id).order_by(cls.report_number.desc()).first()
-        return (last_report.report_number + 1) if last_report else 1
+def send_news_to_all_users():
+    news_summary = get_news_summary()
+    users = User.query.all()
+    for user in users:
+        # 각 사용자의 대화에 뉴스 요약을 추가
+        conversation = Conversation(user_id=user.id)
+        db.session.add(conversation)
+        db.session.commit()
+        
+        message = Message(conversation_id=conversation.id, content=news_summary, is_user=False, user_id=user.id)
+        db.session.add(message)
+        db.session.commit()
 
-#@app.route('/generate_report', methods=['POST'])
-#@login_required
-# def generate_report():
-#     try:
-#         user_messages = Message.query.filter_by(user_id=current_user.id, is_user=True).order_by(Message.timestamp.desc()).limit(10).all()
-#         user_messages = [msg.content for msg in user_messages]
-        
-#         if not user_messages:
-#             return jsonify({"success": False, "error": "No messages found for the user"}), 400
-        
-#         # OpenAI API를 사용하여 보고서 생성
-#         response = client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=[
-#                 {"role": "system", "content": "You are a Korean language expert. Analyze the following messages and provide feedback. If there are grammatical errors or unnatural expressions, format your response as follows:\n\nIncorrect sentence: []\nReason: []\nRecommended native speaker sentence: []\n\nIf the sentence is perfect or particularly well-expressed, provide positive feedback such as 'This expression is excellent.' or 'This sentence is perfectly constructed.'. Always clearly distinguish between correct and incorrect sentences."},
-#                 {"role": "user", "content": f"Analyze these messages:\n{' '.join(user_messages)}"}
-#             ]
-#         )
-        
-#         report_content = response.choices[0].message.content
-        
-#         # 새 보고서 저장
-#         next_report_number = Report.get_next_report_number(current_user.id)
-#         new_report = Report(user_id=current_user.id, content=report_content, report_number=next_report_number)
-#         db.session.add(new_report)
-#         db.session.commit()
-        
-#         return jsonify({"success": True, "report": report_content})
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({"success": False, "error": str(e)}), 500
+def run_schedule():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-# @app.route('/get_reports', methods=['GET'])
-# @login_required
-# def get_reports():
-#     reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.report_number.desc()).all()
-#     return jsonify([{
-#         "id": report.id,
-#         "content": report.content,
-#         "timestamp": report.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-#         "report_number": report.report_number
-#     } for report in reports])
+# 매일 오전 1시에 뉴스 전송
+schedule.every().day.at("01:00").do(send_news_to_all_users)
 
-# @app.route('/get_vocabulary', methods=['GET'])
-# @login_required
-# def get_vocabulary():
-#     user_messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.timestamp.desc()).limit(100).all()
-#     words = ' '.join([msg.content for msg in user_messages]).split()
-#     word_counts = Counter(words)
-#     vocabulary = [{"word": word, "count": count} for word, count in word_counts.most_common(50)]
-#     return jsonify(vocabulary)
+# 스케줄러 시작
+scheduler_thread = Thread(target=run_schedule)
+scheduler_thread.start()
 
 if __name__ == '__main__':
     with app.app_context():

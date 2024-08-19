@@ -284,22 +284,47 @@ def get_next_news():
     
     return news_content
 
+def summarize_news(news_content, max_tokens=100):
+    summary_prompt = f"다음 뉴스를 100자 이내로 요약해주세요:\n\n{news_content}"
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "당신은 뉴스를 간결하게 요약하는 AI입니다."},
+            {"role": "user", "content": summary_prompt}
+        ],
+        max_tokens=max_tokens,
+        temperature=0.7
+    )
+    return response.choices[0].message.content
+
+def get_recent_context(conversation_id, limit=10):
+    recent_messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp.desc()).limit(limit).all()
+    recent_messages.reverse()
+    context = []
+    for msg in recent_messages:
+        msg_type = "사용자" if msg.is_user else "AI"
+        context.append(f"{msg_type}: {msg.content}")
+    return "\n".join(context)
+
 def get_news_summary():
     news_content = get_next_news()
     
     if news_content == "뉴스 내용을 가져오지 못했습니다.":
         return ["앗, 이 뉴스를 가져오는데 문제가 있었어. 다음에 다시 시도해볼게!"]
     
-    prompt = f"""다음 뉴스를 친구에게 말하듯이 요약해줘. 다음 가이드라인을 따라줘:
+    summarized_news = summarize_news(news_content)
+    
+    prompt = f"""다음은 최근 뉴스 요약이야:
+
+{summarized_news}
+
+이 뉴스를 친구에게 말하듯이 설명해줘. 다음 가이드라인을 따라줘:
 1. 뉴스의 주요 내용을 아주 간단하게 요약한 것을 1-2개의 짧은 메시지(50자 이하)로 나눠서 설명해.
 2. 각 메시지는 2문장이하으로 구성해.
 3. 친근하고 캐주얼한 말투를 사용해.
 4. 마지막 메시지에는 간단한 의견이나 질문을 넣어줘.
 5. 각 메시지를 '---'로 구분해줘.
 6. 너 이 소식 들었어? / 와 ~ 이런 일이 있었데 / 오늘 이런 ~ 이런 일이 있었다는데? 같은 친구에게 소신을 전하는 말투를 사용해
-
-뉴스 내용:
-{news_content}
 """
 
     response = client.chat.completions.create(
@@ -312,7 +337,6 @@ def get_news_summary():
         temperature=0.7
     )
     
-    # 응답을 '---'를 기준으로 나누고, 빈 문자열 제거
     messages = [msg.strip() for msg in response.choices[0].message.content.split('---') if msg.strip()]
     return messages
 
@@ -320,6 +344,17 @@ def get_news_summary():
 @login_required
 def get_news():
     news_summary = get_news_summary()
+    active_conversation = Conversation.query.filter_by(user_id=current_user.id, end_time=None).first()
+    if not active_conversation:
+        active_conversation = Conversation(user_id=current_user.id)
+        db.session.add(active_conversation)
+        db.session.commit()
+    
+    for news_message in news_summary:
+        message = Message(conversation_id=active_conversation.id, content=news_message, is_user=False, user_id=current_user.id)
+        db.session.add(message)
+    
+    db.session.commit()
     return jsonify({"messages": news_summary})
 
 @app.route('/')
@@ -387,63 +422,49 @@ def signup():
 @app.route('/chat', methods=['POST'])
 @login_required
 def chat():
-    """
-    채팅 처리를 위한 라우트
-    사용자 메시지를 받아 AI 응답을 생성하고 반환합니다.
-    """
     user_message_content = request.json['message']
     
     try:
-        # 현재 활성화된 대화를 찾거나 새로 생성합니다.
         active_conversation = Conversation.query.filter_by(user_id=current_user.id, end_time=None).first()
         if not active_conversation:
             active_conversation = Conversation(user_id=current_user.id)
             db.session.add(active_conversation)
             db.session.commit()
 
-        # 사용자 메시지를 데이터베이스에 저장합니다.
         user_message = Message(conversation_id=active_conversation.id, content=user_message_content, is_user=True, user_id=current_user.id)
         db.session.add(user_message)
 
-        # 최근 20개의 메시지를 가져옵니다.
-        recent_messages = Message.query.filter_by(conversation_id=active_conversation.id).order_by(Message.timestamp.desc()).limit(20).all()
-        recent_messages.reverse()
-
-        # 사용자 메시지 분석
+        recent_context = get_recent_context(active_conversation.id)
+        
         preferences, sentiment = analyze_message(user_message_content)
 
-        # AI 시스템 메시지 생성
-        enhanced_system_message = {
-            "role": "system",
-            "content": f"{system_message['content']}\n\nAdditional context:\n"
-                       f"User interests: {', '.join(preferences)}\n"
-                       f"Emotional state: {sentiment}\n"
-        }
+        prompt = f"""최근 대화 컨텍스트:
+{recent_context}
 
-        # OpenAI API에 전송할 메시지 리스트 생성
-        messages = [enhanced_system_message] + [{"role": "user" if msg.is_user else "assistant", "content": msg.content} for msg in recent_messages[-5:]] + [{"role": "user", "content": user_message_content}]
+사용자 메시지: {user_message_content}
 
-        # OpenAI API 호출
+위 컨텍스트와 사용자 메시지를 고려하여 답변해주세요. 뉴스 내용이 포함되어 있다면 그에 관련지어 자연스럽게 대답해주세요.
+"""
+
+        messages = [
+            {"role": "system", "content": f"{system_message['content']}\n\n추가 컨텍스트:\n사용자 관심사: {', '.join(preferences)}\n감정 상태: {sentiment}"},
+            {"role": "user", "content": prompt}
+        ]
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=1,
-            max_tokens=100,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
+            max_tokens=150,
+            temperature=0.7
         )
         ai_message_content = response.choices[0].message.content
 
-        # <response> 태그 제거
         ai_message_content = re.sub(r'</?response>', '', ai_message_content)
 
-        # AI 응답을 데이터베이스에 저장
         ai_message = Message(conversation_id=active_conversation.id, content=ai_message_content, is_user=False, user_id=current_user.id)
         db.session.add(ai_message)
         db.session.commit()
 
-        # 음성 생성 (옵션)
         try:
             speech_response = client.audio.speech.create(
                 model="tts-1",
@@ -456,14 +477,13 @@ def chat():
             print(f"Error in speech generation: {str(e)}")
             audio_base64 = None
 
-        # 응답 반환
         return jsonify({
             'message': ai_message_content,
             'audio': audio_base64,
             'success': True
         })
     except Exception as e:
-        db.session.rollback()  # 오류 발생 시 트랜잭션 롤백
+        db.session.rollback()
         print(f"Error in chat processing: {str(e)}")
         return jsonify({'message': 'Sorry, an error occurred.', 'success': False}), 500
 

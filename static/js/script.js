@@ -32,11 +32,6 @@ const ChatApp = (function () {
     sidebar: document.getElementById("sidebar"),
     closeSidebar: document.getElementById("close-sidebar"),
     userId: document.getElementById("user-id"),
-    showHistory: document.getElementById("show-history"),
-    historyModal: document.getElementById("history-modal"),
-    closeHistory: document.getElementById("close-history"),
-    historyContainer: document.getElementById("history-container"),
-    loadingHistory: document.getElementById("loading-history"),
     showForgotPasswordLink: document.getElementById("show-forgot-password"),
     forgotPasswordForm: document.getElementById("forgot-password-form"),
     backToLoginLink: document.getElementById("back-to-login"),
@@ -69,8 +64,7 @@ const ChatApp = (function () {
     elements.showLoginLink?.addEventListener("click", showLoginForm);
     elements.menuIcon?.addEventListener("click", openSidebar);
     elements.closeSidebar?.addEventListener("click", closeSidebar);
-    elements.showHistory?.addEventListener("click", showHistoryModal);
-    elements.closeHistory?.addEventListener("click", closeHistoryModal);
+
     elements.showForgotPasswordLink?.addEventListener(
       "click",
       showForgotPasswordForm
@@ -808,60 +802,6 @@ const ChatApp = (function () {
     elements.sidebar.style.width = "0";
   }
 
-  function showHistoryModal() {
-    elements.historyModal.style.display = "block";
-    elements.historyContainer.innerHTML = "<p>Loading history...</p>";
-    loadHistory();
-  }
-
-  function closeHistoryModal() {
-    elements.historyModal.style.display = "none";
-  }
-
-  function loadHistory(date = null) {
-    if (isLoadingHistory) return;
-    setLoadingHistory(true);
-    elements.loadingHistory.style.display = "block";
-
-    fetch(`/get_history?date=${date || ""}`)
-      .then((response) => response.json())
-      .then((data) => {
-        displayHistory(data.history);
-        setLoadingHistory(false);
-        elements.loadingHistory.style.display = "none";
-      })
-      .catch((error) => {
-        console.error("Error loading history:", error);
-        setLoadingHistory(false);
-        elements.loadingHistory.style.display = "none";
-      });
-  }
-
-  function displayHistory(history) {
-    elements.historyContainer.innerHTML = "";
-    let currentDate = null;
-    history.forEach((item) => {
-      if (item.date !== currentDate) {
-        currentDate = item.date;
-        const dateElement = document.createElement("div");
-        dateElement.className = "history-date";
-        dateElement.textContent = currentDate;
-        elements.historyContainer.appendChild(dateElement);
-      }
-      item.messages.forEach((msg) => {
-        const messageDiv = document.createElement("div");
-        messageDiv.className = `message ${
-          msg.is_user ? "user-message" : "bot-message"
-        }`;
-        messageDiv.innerHTML = `
-                <div class="message-bubble">${msg.content}</div>
-                <div class="message-time">${msg.timestamp}</div>
-            `;
-        elements.historyContainer.appendChild(messageDiv);
-      });
-    });
-  }
-
   function showTodaysNews() {
     fetch("/get_news")
       .then((response) => response.json())
@@ -900,10 +840,6 @@ const ChatApp = (function () {
     isAnalyzing = value;
   }
 
-  function setLoadingHistory(value) {
-    isLoadingHistory = value;
-  }
-
   function isProcessing() {
     return isLoading || isAITalking;
   }
@@ -913,13 +849,13 @@ const ChatApp = (function () {
     isAITalking = value;
   }
 
-  function showPendingMessageNotification() {
-    const notification = document.createElement("div");
-    notification.id = "pending-message-notification";
-    notification.textContent = "대기 중인 메시지가 있습니다";
-    notification.style.display = "block";
-    document.body.appendChild(notification);
-  }
+  // function showPendingMessageNotification() {
+  //   const notification = document.createElement("div");
+  //   notification.id = "pending-message-notification";
+  //   notification.textContent = "대기 중인 메시지가 있습니다";
+  //   notification.style.display = "block";
+  //   document.body.appendChild(notification);
+  // }
 
   function showReportsModal() {
     elements.reportsModal.style.display = "block";
@@ -964,21 +900,6 @@ const ChatApp = (function () {
       displayReportsForDate(e.target.value, groupedReports);
   }
 
-  function createDateButtons(groupedReports) {
-    const dateButtonsContainer = document.getElementById("date-buttons");
-    dateButtonsContainer.innerHTML = "";
-
-    Object.keys(groupedReports)
-      .sort()
-      .reverse()
-      .forEach((date) => {
-        const button = document.createElement("button");
-        button.textContent = date;
-        button.onclick = () => displayReportsForDate(date, groupedReports);
-        dateButtonsContainer.appendChild(button);
-      });
-  }
-
   function groupReportsByDate(reports) {
     const grouped = {};
     reports.forEach((report) => {
@@ -1003,26 +924,6 @@ const ChatApp = (function () {
     });
 
     elements.reportsContainer.appendChild(dateGroup);
-  }
-
-  function displayGroupedReports(groupedReports) {
-    elements.reportsContainer.innerHTML = "";
-
-    Object.keys(groupedReports)
-      .sort()
-      .reverse()
-      .forEach((date) => {
-        const dateGroup = document.createElement("div");
-        dateGroup.className = "report-date-group";
-        dateGroup.innerHTML = `<h3>${date}</h3>`;
-
-        groupedReports[date].forEach((report) => {
-          const reportElement = createReportElement(report);
-          dateGroup.appendChild(reportElement);
-        });
-
-        elements.reportsContainer.appendChild(dateGroup);
-      });
   }
 
   function createReportElement(report) {
@@ -1161,7 +1062,6 @@ const ChatApp = (function () {
     showSignupForm: showSignupForm,
     showForgotPasswordForm: showForgotPasswordForm,
     resetPassword: resetPassword,
-    showHistoryModal: showHistoryModal,
     showTodaysNews: showTodaysNews,
     showReportsModal: showReportsModal,
     showAnalysis: showAnalysis,

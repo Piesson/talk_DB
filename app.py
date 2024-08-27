@@ -3,6 +3,8 @@ import base64
 import secrets
 import click
 import re
+import json
+from datetime import datetime
 from collections import Counter
 from datetime import datetime, timedelta
 from itertools import groupby
@@ -70,7 +72,6 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(100), unique=True)
     reset_token_expiration = db.Column(db.DateTime)
     is_admin = db.Column(db.Boolean, default=False)
-    # reports = db.relationship('Report', backref='user', lazy=True)
     messages = db.relationship('Message', backref='user', lazy=True)
 
     def set_reset_token(self):
@@ -112,6 +113,15 @@ class MyAdminIndexView(AdminIndexView):
         if not current_user.is_authenticated or not current_user.is_admin:
             return redirect(url_for('login', next=request.url))
         return super(MyAdminIndexView, self).index()
+    
+
+# Report 모델 추가
+class Report(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    original_text = db.Column(db.Text, nullable=False)
+    analysis = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # 관리자 페이지 설정
 admin = Admin(app, name='TalKR Admin', template_mode='bootstrap3', index_view=MyAdminIndexView())
@@ -338,6 +348,12 @@ def get_news_summary():
     messages = [msg.strip() for msg in response.choices[0].message.content.split('---') if msg.strip()]
     return messages
 
+# 분석 결과 저장 함수
+def save_analysis(user_id, original_text, analysis):
+    new_report = Report(user_id=user_id, original_text=original_text, analysis=analysis)
+    db.session.add(new_report)
+    db.session.commit()
+
 @app.route('/get_news', methods=['GET'])
 @login_required
 def get_news():
@@ -416,6 +432,74 @@ def signup():
     db.session.commit()
     
     return jsonify({"success": True, "message": "User created successfully"})
+
+# analyze_korean 함수 수정
+@app.route('/analyze_korean', methods=['POST'])
+@login_required
+def analyze_korean():
+    text = request.json['text']
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": """Analyze the given Korean sentence and return the result in the following JSON format:
+                {
+                  "original": "Original Korean sentence",
+                  "errors": [
+                    {
+                      "type": "Error type in English",
+                      "incorrect": "Incorrect expression in Korean",
+                      "improved": "Improved expression in Korean",
+                      "explanation": "Explanation in English"
+                    }
+                  ],
+                  "final_revised": "Final revised Korean sentence",
+                  "overall_comment": "Overall comment in English"
+                }
+                """},
+                {"role": "user", "content": f"Analyze this Korean sentence: {text}"}
+            ]
+        )
+        analysis = response.choices[0].message.content
+        
+        # 여기에 로그 출력 코드를 추가합니다
+        print(f"Raw OpenAI response: {response}")
+        print(f"Parsed analysis: {analysis}")
+        
+        analysis_dict = json.loads(analysis)
+        
+        # 교정이 필요한 경우에만 저장
+        if analysis_dict['errors']:
+            save_analysis(current_user.id, text, json.dumps(analysis_dict))
+        
+        return jsonify(analysis_dict)
+    except json.JSONDecodeError:
+        print(f"JSON Decode Error. Raw response: {analysis}")
+        return jsonify({'error': 'Invalid analysis format'}), 500
+    except Exception as e:
+        print(f"Analysis error: {str(e)}")
+        return jsonify({'error': 'Analysis failed'}), 500
+
+# 보고서 가져오기 라우트 추가
+@app.route('/get_reports', methods=['GET'])
+@login_required
+def get_reports():
+    reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.created_at.desc()).all()
+    return jsonify([{
+        'id': report.id,
+        'original_text': report.original_text,
+        'analysis': json.loads(report.analysis),
+        'created_at': report.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for report in reports])
+
+
+@app.route('/get_analysis/<int:report_id>', methods=['GET'])
+@login_required
+def get_analysis(report_id):
+    report = Report.query.get_or_404(report_id)
+    if report.user_id != current_user.id:
+        abort(403)  # 권한 없음
+    return jsonify(json.loads(report.analysis))
 
 @app.route('/chat', methods=['POST'])
 @login_required
@@ -677,7 +761,6 @@ class UserConversationsView(BaseView):
         return self.render('admin/user_conversation_details.html', user=user, grouped_conversations=grouped_conversations)
 
 admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_conversations'))
-
 
 def send_news_to_all_users():
     news_summary = get_news_summary()

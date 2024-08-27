@@ -345,9 +345,9 @@ html {
 /* 히스토리 모달 스타일 */
 #history-modal .modal-content {
   width: 100%;
-  max-width: 480px; /* 채팅방의 최대 너비와 동일하게 설정 */
-  height: 100vh; /* 전체 화면 높이 */
-  margin: 0 auto; /* 중앙 정렬 */
+  max-width: 480px;
+  height: 100vh;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
 }
@@ -409,6 +409,7 @@ html {
     opacity: 1;
   }
 }
+
 /* 번역 버튼 스타일 */
 .translate-btn {
   background-color: #f1f1f1;
@@ -445,13 +446,7 @@ html {
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
-.loading-animation {
-  position: relative;
-  height: 50px;
-  margin-top: 10px;
-}
 
-/* 박스 */
 .loading-animation {
   position: relative;
   height: 5px;
@@ -522,21 +517,24 @@ html {
     transform: scale(1.2, 1);
   }
 }
+
 /* 링크 스타일 */
 .modal-content a {
-  color: #4caf50; /* 초록색으로 변경, 원하는 색상으로 조정 가능 */
-  text-decoration: none; /* 밑줄 제거 */
-  transition: color 0.3s; /* 색상 변화에 애니메이션 효과 추가 */
+  color: #4caf50;
+  text-decoration: none;
+  transition: color 0.3s;
   font-size: 14px;
 }
 
 .modal-content a:hover {
-  color: #45a049; /* 마우스 오버 시 색상 변경 */
-  text-decoration: underline; /* 마우스 오버 시 밑줄 추가 (선택사항) */
+  color: #45a049;
+  text-decoration: underline;
 }
+
 #show-signup {
   margin-left: 10px;
 }
+
 .history-date {
   text-align: center;
   padding: 10px 0;
@@ -545,6 +543,7 @@ html {
   font-size: 14px;
   color: #888;
 }
+
 .user-info {
   display: flex;
   align-items: center;
@@ -575,6 +574,7 @@ html {
 .btn-logout:hover {
   background-color: #45a049;
 }
+
 #reports-container button {
   display: block;
   width: 100%;
@@ -593,4 +593,230 @@ html {
 #reports-container pre {
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* 분석 버튼 스타일 */
+.analyze-btn {
+  background-color: #f1f1f1;
+  color: #4caf50;
+  border: none;
+  padding: 5px 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.analyze-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* 한국어 분석 결과 전체 컨테이너 */
+.korean-analysis {
+  background-color: #f9f9f9;
+  border-left: 4px solid #4caf50;
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 4px;
+  font-family: "Noto Sans KR", sans-serif;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 각 분석 섹션 */
+.analysis-section {
+  margin-bottom: 20px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* 섹션 제목 */
+.analysis-section h3 {
+  color: #2e7d32;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #4caf50;
+  font-size: 1.2em;
+}
+
+/* 원문 섹션 */
+.original {
+  background-color: #e8f5e9;
+  font-weight: bold;
+}
+
+/* 오류 및 개선사항 섹션 */
+.errors .error-item {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-left: 3px solid #f44336;
+  background-color: #fff8e1;
+}
+
+.error-type {
+  font-weight: bold;
+  color: #d32f2f;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.incorrect {
+  text-decoration: line-through;
+  color: #f44336;
+  margin-bottom: 5px;
+}
+
+.improved {
+  color: #2e7d32;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.explanation {
+  font-style: italic;
+  color: #616161;
+  margin-top: 8px;
+  font-size: 0.95em;
+}
+
+/* 수정된 문장 섹션 */
+.final-revised {
+  background-color: #e8f5e9;
+  font-weight: bold;
+  color: #1b5e20;
+}
+
+/* 전체 평가 섹션 */
+.overall-comment {
+  background-color: #fff3e0;
+  font-style: italic;
+  color: #4e342e;
+}
+
+/* 반응형 디자인을 위한 미디어 쿼리 */
+@media (max-width: 600px) {
+  .korean-analysis {
+    padding: 10px;
+  }
+
+  .analysis-section {
+    padding: 10px;
+  }
+
+  .analysis-section h3 {
+    font-size: 1.1em;
+  }
+}
+
+/* 접근성을 위한 호버 효과 */
+.error-item:hover,
+.final-revised:hover,
+.overall-comment:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.3s ease;
+}
+
+/* 애니메이션 효과 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.korean-analysis {
+  animation: fadeIn 0.5s ease-in;
+}
+
+/* 리포트 모달 스타일 개선 */
+#reports-modal .modal-content {
+  width: 80%;
+  max-width: 800px;
+  margin: 5% auto;
+  padding: 30px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#reports-container {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 15px;
+}
+
+.report-date-group {
+  margin-bottom: 30px;
+}
+
+.report-date-group h3 {
+  color: #4caf50;
+  border-bottom: 2px solid #4caf50;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.report {
+  background-color: white;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.report p {
+  margin-bottom: 10px;
+}
+
+.report button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+}
+
+.report button:hover {
+  background-color: #45a049;
+}
+
+#date-buttons {
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#date-buttons button {
+  background-color: #4caf50;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+#date-buttons button:hover {
+  background-color: #45a049;
+}
+
+#reports-container {
+  max-height: 60vh;
+  overflow-y: auto;
 }

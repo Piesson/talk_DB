@@ -134,3 +134,54 @@
 #show-all-dates:hover {
   background-color: #45a049;
 }
+#reports-modal .modal-content {
+  width: 80%;
+  max-width: 600px;
+  margin: 15% auto;
+  padding: 20px;
+  background-color: #f3f3f3;
+  border-radius: 5px;
+  position: relative;
+}
+
+#reports-modal .close {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.report {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.report h3 {
+  margin-top: 0;
+  color: #4caf50;
+}
+
+.report button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.report button:hover {
+  background-color: #45a049;
+}
+
+.analysis-container {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #e8f5e9;
+  border-radius: 3px;
+}

@@ -1,6 +1,4 @@
-// 모듈 패턴을 사용하여 전역 네임스페이스 오염 방지
 const ChatApp = (function () {
-  // 비공개 변수
   let isLoggedIn = false;
   let isListening = false;
   let isAITalking = false;
@@ -11,10 +9,10 @@ const ChatApp = (function () {
   let messageCount = 0;
   let sessionStartTime = null;
   let isTranslating = false;
+  let isAnalyzing = false;
   let pendingMessage = null;
   let messageQueue = [];
 
-  // DOM 요소 캐싱
   const elements = {
     chatContainer: document.getElementById("chat-container"),
     userInput: document.getElementById("user-input"),
@@ -43,19 +41,13 @@ const ChatApp = (function () {
     forgotPasswordForm: document.getElementById("forgot-password-form"),
     backToLoginLink: document.getElementById("back-to-login"),
     resetPasswordBtn: document.getElementById("reset-password-btn"),
-    // showReports: document.getElementById("show-reports"),
-    // reportsModal: document.getElementById("reports-modal"),
-    // closeReports: document.getElementById("close-reports"),
-    // reportsContainer: document.getElementById("reports-container"),
-    // showVocabulary: document.getElementById("show-vocabulary"),
-    // vocabularyModal: document.getElementById("vocabulary-modal"),
-    // closeVocabulary: document.getElementById("close-vocabulary"),
-    // vocabularyContainer: document.getElementById("vocabulary-container"),
     logoutBtn: document.getElementById("logout-btn"),
     showTodaysNews: document.getElementById("show-todays-news"),
+    showReports: document.getElementById("show-reports"),
+    reportsModal: document.getElementById("reports-modal"),
+    reportsContainer: document.getElementById("reports-container"),
   };
 
-  // 초기화 함수
   function init() {
     if (!elements.chatContainer) {
       console.error("Critical element is missing. Chat container not found.");
@@ -66,7 +58,6 @@ const ChatApp = (function () {
     checkLoginStatus();
   }
 
-  // 이벤트 리스너 설정
   function setupEventListeners() {
     elements.sendBtn?.addEventListener("click", sendMessage);
     elements.userInput?.addEventListener("keypress", handleKeyPress);
@@ -86,30 +77,21 @@ const ChatApp = (function () {
     );
     elements.backToLoginLink?.addEventListener("click", backToLogin);
     elements.resetPasswordBtn?.addEventListener("click", resetPassword);
-    // elements.showReports?.addEventListener("click", showReportsModal);
-    // elements.closeReports?.addEventListener("click", closeReportsModal);
-    // elements.showVocabulary?.addEventListener("click", showVocabularyModal);
-    // elements.closeVocabulary?.addEventListener("click", closeVocabularyModal);
     elements.logoutBtn?.addEventListener("click", logout);
     elements.showTodaysNews?.addEventListener("click", showTodaysNews);
-    elements.sendBtn?.addEventListener("click", sendMessage);
-    elements.userInput?.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        sendMessage(e);
-      }
-    });
+    elements.showReports?.addEventListener("click", showReportsModal);
+    elements.reportsModal
+      .querySelector(".close")
+      ?.addEventListener("click", closeReportsModal);
   }
 
-  // 메시지 전송 함수
   function sendMessage(event) {
-    // event 매개변수가 존재하면 기본 동작을 막습니다.
     if (event && event.preventDefault) {
       event.preventDefault();
     }
 
     const message = elements.userInput.value.trim();
     if (message) {
-      // 메시지가 비어있지 않은 경우에만 처리
       if (isProcessing()) {
         pendingMessage = message;
         showPendingMessageNotification();
@@ -128,7 +110,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 메시지 큐 처리
   function processMessageQueue() {
     if (isProcessing() || messageQueue.length === 0) {
       return;
@@ -171,7 +152,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 서버에 메시지 전송
   function sendMessageToServer(message) {
     return fetch("/chat", {
       method: "POST",
@@ -184,7 +164,6 @@ const ChatApp = (function () {
     });
   }
 
-  // 메시지 추가
   function addMessage(message, isUser, audioData) {
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${isUser ? "user-message" : "bot-message"}`;
@@ -194,10 +173,16 @@ const ChatApp = (function () {
     messageBubble.textContent = message;
     messageDiv.appendChild(messageBubble);
 
-    if (!isUser) {
+    if (isUser) {
+      const analyzeBtn = document.createElement("button");
+      analyzeBtn.className = "analyze-btn";
+      analyzeBtn.textContent = "분석";
+      analyzeBtn.onclick = () => analyzeKorean(message, messageDiv);
+      messageDiv.appendChild(analyzeBtn);
+    } else {
       const translateBtn = document.createElement("button");
       translateBtn.className = "translate-btn";
-      translateBtn.textContent = "Translate";
+      translateBtn.textContent = "번역";
       translateBtn.onclick = () =>
         translateMessage(message, messageDiv, translateBtn);
       messageDiv.appendChild(translateBtn);
@@ -211,7 +196,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 오디오 재생
   function playAudio(audioData) {
     setAITalking(true);
     if (isListening) {
@@ -234,7 +218,6 @@ const ChatApp = (function () {
     };
   }
 
-  // 음성 인식 설정
   function setupSpeechRecognition() {
     if (
       !("webkitSpeechRecognition" in window) &&
@@ -278,7 +261,6 @@ const ChatApp = (function () {
     recognition.onerror = handleSpeechError;
   }
 
-  // 음성 인식 결과 처리
   function handleSpeechResult(event) {
     let currentTranscript = "";
 
@@ -298,7 +280,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 음성 인식 오류 처리
   function handleSpeechError(event) {
     console.error("음성 인식 오류:", event.error);
     stopListening();
@@ -307,7 +288,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 음성 인식 토글
   function toggleVoiceRecognition() {
     if (isAITalking || isLoading) {
       stopAITalking();
@@ -320,7 +300,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 자동 마이크 토글
   function toggleAutoMic() {
     isAutoMicOn = !isAutoMicOn;
     elements.autoMicToggle.textContent = isAutoMicOn
@@ -334,7 +313,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 음성 인식 시작
   function startListening() {
     if (!recognition) {
       setupSpeechRecognition();
@@ -345,7 +323,6 @@ const ChatApp = (function () {
     console.log("음성 인식이 시작되었습니다.");
   }
 
-  // 음성 인식 중지
   function stopListening() {
     if (recognition) {
       recognition.stop();
@@ -355,7 +332,6 @@ const ChatApp = (function () {
     }
   }
 
-  // AI 발화 중지
   function stopAITalking() {
     if (currentAudio) {
       currentAudio.pause();
@@ -369,7 +345,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 로딩 애니메이션 추가
   function addLoadingAnimation() {
     setLoading(true);
     if (isAutoMicOn) {
@@ -381,19 +356,18 @@ const ChatApp = (function () {
     const loadingDiv = document.createElement("div");
     loadingDiv.className = "message-bubble loading";
     loadingDiv.innerHTML = `
-      <div class="loading-dots">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-    `;
+          <div class="loading-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+          </div>
+      `;
     messageDiv.appendChild(loadingDiv);
     elements.chatContainer.appendChild(messageDiv);
     elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
     return messageDiv;
   }
 
-  // 로딩 애니메이션 제거
   function removeLoadingAnimation(loadingDiv) {
     elements.chatContainer.removeChild(loadingDiv);
     setLoading(false);
@@ -402,7 +376,6 @@ const ChatApp = (function () {
     }
   }
 
-  // 번역 기능
   function translateMessage(message, messageDiv, translateBtn) {
     if (isTranslating) {
       console.log("번역이 이미 진행 중입니다.");
@@ -456,7 +429,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 번역 로딩 애니메이션 추가
   function addTranslationLoadingAnimation(container) {
     const loadingDiv = document.createElement("div");
     loadingDiv.className = "loading-animation";
@@ -465,14 +437,137 @@ const ChatApp = (function () {
     return loadingDiv;
   }
 
-  // 번역 로딩 애니메이션 제거
   function removeTranslationLoadingAnimation(loadingDiv) {
     if (loadingDiv && loadingDiv.parentNode) {
       loadingDiv.parentNode.removeChild(loadingDiv);
     }
   }
 
-  // 로그인 함수
+  function analyzeKorean(message, messageDiv) {
+    if (isAnalyzing) {
+      console.log("분석이 이미 진행 중입니다.");
+      return;
+    }
+
+    const existingAnalysis = messageDiv.querySelector(".korean-analysis");
+    if (existingAnalysis) {
+      existingAnalysis.style.display =
+        existingAnalysis.style.display === "none" ? "block" : "none";
+      return;
+    }
+
+    setAnalyzing(true);
+
+    const loadingDiv = addAnalysisLoadingAnimation(messageDiv);
+
+    fetch("/analyze_korean", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: message }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Received analysis data:", data);
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        if (data.errors) {
+          displayErrorsAndImprovements(data, messageDiv);
+        } else {
+          throw new Error("분석 데이터 형식이 올바르지 않습니다.");
+        }
+      })
+      .catch((error) => {
+        console.error("Analysis error:", error);
+        if (error.message.includes("HTTP error! status: 500")) {
+          // 500 에러 발생 시 재시도
+          setTimeout(() => analyzeKorean(message, messageDiv), 1000);
+        } else {
+          messageDiv.querySelector(".korean-analysis").innerHTML =
+            "분석 중 오류가 발생했습니다. 나중에 다시 시도해 주세요.";
+        }
+      })
+      .finally(() => {
+        removeAnalysisLoadingAnimation(loadingDiv);
+        setAnalyzing(false);
+      });
+  }
+
+  function displayKoreanAnalysis(analysis, container, isFullReport = false) {
+    const analysisDiv = document.createElement("div");
+    analysisDiv.className = "korean-analysis";
+
+    const sections = [
+      {
+        title: "Errors and Improvements",
+        content: formatErrorsAndImprovements(analysis.errors),
+        class: "errors",
+      },
+      {
+        title: "Final Revised Version",
+        content: analysis.final_revised,
+        class: "final-revised",
+      },
+      {
+        title: "Overall Comment",
+        content: analysis.overall_comment,
+        class: "overall-comment",
+      },
+    ];
+
+    sections.forEach((section) => {
+      const sectionDiv = document.createElement("div");
+      sectionDiv.className = `analysis-section ${section.class}`;
+
+      const title = document.createElement("h3");
+      title.textContent = section.title;
+      sectionDiv.appendChild(title);
+
+      const content = document.createElement("div");
+      content.className = "section-content";
+      content.innerHTML = section.content;
+      sectionDiv.appendChild(content);
+
+      analysisDiv.appendChild(sectionDiv);
+    });
+
+    container.appendChild(analysisDiv);
+  }
+
+  function formatErrorsAndImprovements(errors) {
+    return errors
+      .map(
+        (error, index) => `
+        <div class="error-item">
+            <div class="error-type">${index + 1}. ${error.type}</div>
+            <div class="incorrect">Incorrect: ${error.incorrect}</div>
+            <div class="improved">Improved: ${error.improved}</div>
+            <div class="explanation">Explanation: ${error.explanation}</div>
+        </div>
+    `
+      )
+      .join("");
+  }
+
+  function addAnalysisLoadingAnimation(container) {
+    const loadingDiv = document.createElement("div");
+    loadingDiv.className = "loading-animation";
+    loadingDiv.innerHTML = '<div class="boxLoading"></div>';
+    container.appendChild(loadingDiv);
+    return loadingDiv;
+  }
+
+  function removeAnalysisLoadingAnimation(loadingDiv) {
+    if (loadingDiv && loadingDiv.parentNode) {
+      loadingDiv.parentNode.removeChild(loadingDiv);
+    }
+  }
+
   function login() {
     const username = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
@@ -503,7 +598,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 회원가입 함수
   function signup() {
     const username = document.getElementById("signup-username").value.trim();
     const email = document.getElementById("signup-email").value.trim();
@@ -559,14 +653,12 @@ const ChatApp = (function () {
       });
   }
 
-  // 이메일 유효성 검사
   function isValidEmail(email) {
     const re =
       /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
   }
 
-  // 사용 시간 추적 시작
   function startUsageTracking() {
     setInterval(() => {
       const currentTime = new Date();
@@ -575,7 +667,6 @@ const ChatApp = (function () {
     }, 60000);
   }
 
-  // 사용 시간 업데이트
   function updateUsageTime(time) {
     fetch("/update_usage_time", {
       method: "POST",
@@ -593,7 +684,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 로그인 상태 확인
   function checkLoginStatus() {
     fetch("/check_login")
       .then((response) => response.json())
@@ -612,7 +702,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 로그아웃 함수
   function logout() {
     fetch("/logout", {
       method: "POST",
@@ -629,18 +718,15 @@ const ChatApp = (function () {
       .catch((error) => console.error("Logout error:", error));
   }
 
-  // 사용자 ID 업데이트
   function updateUserId(username) {
     elements.userId.textContent = username;
   }
 
-  // 메시지 설정
   function setMessage(message, type) {
     elements.authMessage.textContent = message;
     elements.authMessage.className = type ? type + "-message" : "";
   }
 
-  // 로그인 폼 표시
   function showLoginForm() {
     clearAuthMessage();
     elements.modalTitle.textContent = "Login";
@@ -650,7 +736,6 @@ const ChatApp = (function () {
     elements.authModal.style.display = "block";
   }
 
-  // 회원가입 폼 표시
   function showSignupForm(e) {
     e.preventDefault();
     clearAuthMessage();
@@ -660,7 +745,6 @@ const ChatApp = (function () {
     elements.forgotPasswordForm.style.display = "none";
   }
 
-  // 비밀번호 재설정 폼 표시
   function showForgotPasswordForm(e) {
     e.preventDefault();
     clearAuthMessage();
@@ -670,14 +754,12 @@ const ChatApp = (function () {
     elements.modalTitle.textContent = "Reset Password";
   }
 
-  // 로그인 폼으로 돌아가기
   function backToLogin(e) {
     e.preventDefault();
     clearAuthMessage();
     showLoginForm();
   }
 
-  // 비밀번호 재설정
   function resetPassword() {
     const email = document.getElementById("reset-email").value;
     const loadingAnimation = document.getElementById("loading-animation");
@@ -713,35 +795,29 @@ const ChatApp = (function () {
       });
   }
 
-  // 인증 메시지 초기화
   function clearAuthMessage() {
     elements.authMessage.textContent = "";
     elements.authMessage.className = "";
   }
 
-  // 사이드바 열기
   function openSidebar() {
     elements.sidebar.style.width = "50%";
   }
 
-  // 사이드바 닫기
   function closeSidebar() {
     elements.sidebar.style.width = "0";
   }
 
-  // 히스토리 모달 표시
   function showHistoryModal() {
     elements.historyModal.style.display = "block";
     elements.historyContainer.innerHTML = "<p>Loading history...</p>";
     loadHistory();
   }
 
-  // 히스토리 모달 닫기
   function closeHistoryModal() {
     elements.historyModal.style.display = "none";
   }
 
-  // 히스토리 로드
   function loadHistory(date = null) {
     if (isLoadingHistory) return;
     setLoadingHistory(true);
@@ -761,7 +837,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 히스토리 표시
   function displayHistory(history) {
     elements.historyContainer.innerHTML = "";
     let currentDate = null;
@@ -779,15 +854,14 @@ const ChatApp = (function () {
           msg.is_user ? "user-message" : "bot-message"
         }`;
         messageDiv.innerHTML = `
-          <div class="message-bubble">${msg.content}</div>
-          <div class="message-time">${msg.timestamp}</div>
-        `;
+                <div class="message-bubble">${msg.content}</div>
+                <div class="message-time">${msg.timestamp}</div>
+            `;
         elements.historyContainer.appendChild(messageDiv);
       });
     });
   }
 
-  // 오늘의 뉴스 표시
   function showTodaysNews() {
     fetch("/get_news")
       .then((response) => response.json())
@@ -802,7 +876,6 @@ const ChatApp = (function () {
       });
   }
 
-  // 상태 변경 함수들
   function setLoggedIn(value) {
     isLoggedIn = value;
   }
@@ -823,6 +896,10 @@ const ChatApp = (function () {
     isTranslating = value;
   }
 
+  function setAnalyzing(value) {
+    isAnalyzing = value;
+  }
+
   function setLoadingHistory(value) {
     isLoadingHistory = value;
   }
@@ -836,7 +913,6 @@ const ChatApp = (function () {
     isAITalking = value;
   }
 
-  // 대기 중인 메시지 알림 표시
   function showPendingMessageNotification() {
     const notification = document.createElement("div");
     notification.id = "pending-message-notification";
@@ -845,23 +921,234 @@ const ChatApp = (function () {
     document.body.appendChild(notification);
   }
 
-  // 대기 중인 메시지 확인
-  function showPendingMessageConfirmation() {
-    if (pendingMessage) {
-      if (confirm(`Do you want to send this message? "${pendingMessage}"`)) {
-        sendMessage(pendingMessage);
+  function showReportsModal() {
+    elements.reportsModal.style.display = "block";
+    loadReports();
+  }
+
+  function closeReportsModal() {
+    elements.reportsModal.style.display = "none";
+  }
+
+  function loadReports() {
+    fetch("/get_reports")
+      .then((response) => response.json())
+      .then((reports) => {
+        const groupedReports = groupReportsByDate(reports);
+        createDateSelector(groupedReports);
+        const firstDate = Object.keys(groupedReports)[0];
+        displayReportsForDate(firstDate, groupedReports);
+      })
+      .catch((error) => {
+        console.error("Error loading reports:", error);
+        elements.reportsContainer.innerHTML =
+          "Error loading reports. Please try again.";
+      });
+  }
+
+  function createDateSelector(groupedReports) {
+    const dateSelect = document.getElementById("date-select");
+    dateSelect.innerHTML = "";
+
+    Object.keys(groupedReports)
+      .sort()
+      .reverse()
+      .forEach((date) => {
+        const option = document.createElement("option");
+        option.value = date;
+        option.textContent = date;
+        dateSelect.appendChild(option);
+      });
+
+    dateSelect.onchange = (e) =>
+      displayReportsForDate(e.target.value, groupedReports);
+  }
+
+  function createDateButtons(groupedReports) {
+    const dateButtonsContainer = document.getElementById("date-buttons");
+    dateButtonsContainer.innerHTML = "";
+
+    Object.keys(groupedReports)
+      .sort()
+      .reverse()
+      .forEach((date) => {
+        const button = document.createElement("button");
+        button.textContent = date;
+        button.onclick = () => displayReportsForDate(date, groupedReports);
+        dateButtonsContainer.appendChild(button);
+      });
+  }
+
+  function groupReportsByDate(reports) {
+    const grouped = {};
+    reports.forEach((report) => {
+      const date = report.created_at.split(" ")[0]; // Extract date part
+      if (!grouped[date]) {
+        grouped[date] = [];
       }
-      pendingMessage = null;
-      const notification = document.getElementById(
-        "pending-message-notification"
-      );
-      if (notification) {
-        notification.style.display = "none";
-      }
+      grouped[date].push(report);
+    });
+    return grouped;
+  }
+
+  function displayReportsForDate(date, groupedReports) {
+    elements.reportsContainer.innerHTML = "";
+
+    const dateGroup = document.createElement("div");
+    dateGroup.className = "report-date-group";
+
+    groupedReports[date].forEach((report) => {
+      const reportElement = createReportElement(report);
+      dateGroup.appendChild(reportElement);
+    });
+
+    elements.reportsContainer.appendChild(dateGroup);
+  }
+
+  function displayGroupedReports(groupedReports) {
+    elements.reportsContainer.innerHTML = "";
+
+    Object.keys(groupedReports)
+      .sort()
+      .reverse()
+      .forEach((date) => {
+        const dateGroup = document.createElement("div");
+        dateGroup.className = "report-date-group";
+        dateGroup.innerHTML = `<h3>${date}</h3>`;
+
+        groupedReports[date].forEach((report) => {
+          const reportElement = createReportElement(report);
+          dateGroup.appendChild(reportElement);
+        });
+
+        elements.reportsContainer.appendChild(dateGroup);
+      });
+  }
+
+  function createReportElement(report) {
+    const element = document.createElement("div");
+    element.className = "report";
+    element.innerHTML = `
+      <p><strong>Original:</strong> ${escapeHtml(report.original_text)}</p>
+      <p><strong>Final Revised Version:</strong> ${escapeHtml(
+        report.analysis.final_revised || "Not available"
+      )}</p>
+      <button onclick="ChatApp.showAnalysis(this, ${
+        report.id
+      })">View Analysis</button>
+      <div class="analysis-container" style="display: none;"></div>
+    `;
+    return element;
+  }
+
+  function escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function showAnalysis(button, reportId) {
+    const container = button.nextElementSibling;
+    if (container.style.display === "none") {
+      fetchAnalysis(reportId, container, button, 3); // 3 attempts
+    } else {
+      container.style.display = "none";
+      button.textContent = "View Analysis";
     }
   }
 
-  // 공개 메서드
+  function fetchAnalysis(reportId, container, button, attemptsLeft) {
+    fetch(`/get_analysis/${reportId}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((analysis) => {
+        container.style.display = "block";
+        container.innerHTML = "";
+        displayFullAnalysis(analysis, container);
+        button.textContent = "Hide Analysis";
+      })
+      .catch((error) => {
+        console.error("Error loading analysis data:", error);
+        if (attemptsLeft > 0) {
+          console.log(`Retrying... ${attemptsLeft} attempts left`);
+          setTimeout(
+            () => fetchAnalysis(reportId, container, button, attemptsLeft - 1),
+            1000
+          );
+        } else {
+          container.innerHTML =
+            "Unable to load analysis at this time. Please try again later.";
+        }
+      });
+  }
+  function displayErrorsAndImprovements(data, container) {
+    const analysisDiv = document.createElement("div");
+    analysisDiv.className = "korean-analysis";
+
+    const errorsSection = document.createElement("div");
+    errorsSection.className = "analysis-section errors";
+
+    const title = document.createElement("h3");
+    title.textContent = "Errors and Improvements";
+    errorsSection.appendChild(title);
+
+    const content = document.createElement("div");
+    content.className = "section-content";
+    content.innerHTML = formatErrorsAndImprovements(data.errors);
+    errorsSection.appendChild(content);
+
+    analysisDiv.appendChild(errorsSection);
+    container.appendChild(analysisDiv);
+  }
+
+  function displayFullAnalysis(analysis, container) {
+    const analysisDiv = document.createElement("div");
+    analysisDiv.className = "korean-analysis";
+
+    const sections = [
+      {
+        title: "Errors and Improvements",
+        content: formatErrorsAndImprovements(analysis.errors),
+        class: "errors",
+      },
+      {
+        title: "Final Revised Version",
+        content: analysis.final_revised,
+        class: "final-revised",
+      },
+      {
+        title: "Overall Comment",
+        content: analysis.overall_comment,
+        class: "overall-comment",
+      },
+    ];
+
+    sections.forEach((section) => {
+      const sectionDiv = document.createElement("div");
+      sectionDiv.className = `analysis-section ${section.class}`;
+
+      const title = document.createElement("h3");
+      title.textContent = section.title;
+      sectionDiv.appendChild(title);
+
+      const content = document.createElement("div");
+      content.className = "section-content";
+      content.innerHTML = section.content;
+      sectionDiv.appendChild(content);
+
+      analysisDiv.appendChild(sectionDiv);
+    });
+
+    container.appendChild(analysisDiv);
+  }
+
   return {
     init: init,
     sendMessage: sendMessage,
@@ -876,8 +1163,9 @@ const ChatApp = (function () {
     resetPassword: resetPassword,
     showHistoryModal: showHistoryModal,
     showTodaysNews: showTodaysNews,
+    showReportsModal: showReportsModal,
+    showAnalysis: showAnalysis,
   };
 })();
 
-// DOM이 로드된 후 앱 초기화
 document.addEventListener("DOMContentLoaded", ChatApp.init);

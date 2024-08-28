@@ -123,6 +123,15 @@ class Report(db.Model):
     analysis = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class VocabularyItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    word = db.Column(db.String(100), nullable=False)
+    meaning = db.Column(db.Text, nullable=False)
+    explanation = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('vocabulary_items', lazy=True))
 # 관리자 페이지 설정
 admin = Admin(app, name='TalKR Admin', template_mode='bootstrap3', index_view=MyAdminIndexView())
 admin.add_view(SecureModelView(User, db.session))
@@ -353,6 +362,81 @@ def save_analysis(user_id, original_text, analysis):
     new_report = Report(user_id=user_id, original_text=original_text, analysis=analysis)
     db.session.add(new_report)
     db.session.commit()
+
+@app.route('/get_word_meaning', methods=['POST'])
+@login_required
+def get_word_meaning():
+    word = request.json['word']
+    try:
+        print(f"Requesting meaning for word: {word}")
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a Korean-English dictionary. Provide structured information about the given Korean word."},
+                {"role": "user", "content": f"Provide information about this Korean word in the following JSON format: {{\"word\": \"{word}\", \"meaning\": \"English meaning\", \"explanation\": \"Detailed explanation in English\"}}"}
+            ]
+        )
+        
+        print(f"Raw OpenAI response: {response}")
+        content = response.choices[0].message.content
+        print(f"Response content: {content}")
+        
+        # Remove code block markers and extract JSON
+        json_content = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_content:
+            meaning_data = json.loads(json_content.group())
+        else:
+            raise ValueError("No JSON object found in the response")
+        
+        print(f"Parsed meaning data: {meaning_data}")
+        
+        return jsonify(meaning_data)
+    except Exception as e:
+        print(f"Error getting word meaning: {str(e)}")
+        return jsonify({'error': 'Failed to get word meaning'}), 500
+    
+@app.route('/save_vocabulary', methods=['POST'])
+@login_required
+def save_vocabulary():
+    data = request.json
+    word = data.get('word')
+    meaning = data.get('meaning')
+    explanation = data.get('explanation', '')
+    
+    print(f"Attempting to save word: {word}, meaning: {meaning}, explanation: {explanation}")
+    
+    if not word or not meaning:
+        print("Word or meaning is missing")
+        return jsonify({'success': False, 'error': 'Word and meaning are required'}), 400
+    
+    try:
+        new_item = VocabularyItem(user_id=current_user.id, word=word, meaning=meaning, explanation=explanation)
+        db.session.add(new_item)
+        db.session.commit()
+        print(f"Word saved successfully: {word}")
+        return jsonify({'success': True, 'message': 'Word saved successfully'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving vocabulary: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to save vocabulary'}), 500
+
+
+@app.route('/get_vocabulary', methods=['GET'])
+@login_required
+def get_vocabulary():
+    try:
+        items = VocabularyItem.query.filter_by(user_id=current_user.id).order_by(VocabularyItem.created_at.desc()).all()
+        vocabulary = [{
+            'word': item.word,
+            'meaning': item.meaning,
+            'explanation': item.explanation,
+            'created_at': item.created_at.isoformat()
+        } for item in items]
+        return jsonify({'vocabulary': vocabulary})
+    except Exception as e:
+        print(f"Error fetching vocabulary: {str(e)}")
+        return jsonify({'error': f'Failed to fetch vocabulary: {str(e)}'}), 500
+
 
 @app.route('/get_news', methods=['GET'])
 @login_required
@@ -761,6 +845,8 @@ class UserConversationsView(BaseView):
         return self.render('admin/user_conversation_details.html', user=user, grouped_conversations=grouped_conversations)
 
 admin.add_view(UserConversationsView(name='User Conversations', endpoint='user_conversations'))
+
+
 
 def send_news_to_all_users():
     news_summary = get_news_summary()

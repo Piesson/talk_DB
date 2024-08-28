@@ -820,3 +820,372 @@ html {
   max-height: 60vh;
   overflow-y: auto;
 }
+/* ... (기존 스타일 유지) ... */
+
+.hoverable-word {
+  cursor: pointer;
+  position: relative;
+}
+
+.hoverable-word:hover {
+  background-color: #f0f0f0;
+}
+
+.word-tooltip {
+  position: absolute;
+  background-color: #333;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+.saved-word {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+#vocabulary-modal .modal-content {
+  max-width: 600px;
+}
+
+.vocabulary-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+/* ... (기존 스타일 유지) ... */
+/* ... (기존 스타일 유지) ... */
+
+#vocabulary-modal .modal-content {
+  max-width: 600px;
+}
+
+#vocabulary-date-selector {
+  margin-bottom: 20px;
+}
+
+#vocabulary-date-select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+}
+
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-item h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.vocabulary-item p {
+  margin: 5px 0;
+  font-size: 16px;
+}
+
+.vocabulary-item p strong {
+  color: #4caf50;
+}
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-word {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.vocabulary-meaning {
+  font-size: 16px;
+  color: #4caf50;
+  margin-bottom: 5px;
+}
+
+.vocabulary-example {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+#vocabulary-modal .modal-content {
+  max-width: 600px;
+  padding: 20px;
+}
+
+#vocabulary-date-selector {
+  margin-bottom: 20px;
+}
+
+#vocabulary-date-select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+/* ... (기존 스타일 유지) ... */
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-word {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.vocabulary-word::before {
+  content: "* ";
+  color: #4caf50;
+}
+
+.vocabulary-meaning {
+  font-size: 16px;
+  color: #4caf50;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.vocabulary-example {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+/* ... (이전의 다른 CSS 스타일들) ... */
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-word {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #4caf50;
+  padding-bottom: 10px;
+}
+
+.vocabulary-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.vocabulary-meaning-section,
+.vocabulary-example-section {
+  background-color: #ffffff;
+  border-radius: 6px;
+  padding: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-meaning-section h4,
+.vocabulary-example-section h4 {
+  font-size: 18px;
+  color: #4caf50;
+  margin-bottom: 10px;
+}
+
+.vocabulary-meaning-section p,
+.vocabulary-example-section p {
+  font-size: 16px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.vocabulary-example-section p {
+  font-style: italic;
+}
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-word {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.vocabulary-meaning {
+  font-size: 14px;
+  color: #4caf50;
+}
+.vocabulary-item {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.vocabulary-item p {
+  margin: 5px 0;
+}
+.word-tooltip {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  max-width: 300px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.word-tooltip p {
+  margin: 5px 0;
+}
+.vocabulary-item {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-item p {
+  margin: 5px 0;
+}
+
+.vocabulary-item strong {
+  color: #4a4a4a;
+}
+
+.word-tooltip {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  max-width: 300px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.word-tooltip p {
+  margin: 5px 0;
+}
+
+.word-tooltip button {
+  margin-top: 10px;
+  padding: 5px 10px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.word-tooltip button:hover {
+  background-color: #45a049;
+}
+.word-tooltip {
+  position: absolute;
+  background-color: #f9f9f9;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 1000;
+  max-width: 300px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.hoverable-word {
+  position: relative;
+  cursor: pointer;
+}
+
+.hoverable-word:hover {
+  background-color: #e0e0e0;
+}
+.word-tooltip {
+  position: fixed; /* absolute 대신 fixed 사용 */
+  background-color: #f9f9f9;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 1000;
+  max-width: 300px; /* 최대 너비 증가 */
+  max-height: 200px; /* 최대 높이 설정 */
+  overflow-y: auto; /* 세로 스크롤 추가 */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.word-tooltip p {
+  margin: 0 0 10px 0; /* 문단 간격 추가 */
+}
+
+.word-tooltip strong {
+  display: inline-block;
+  min-width: 50px; /* 레이블 너비 설정 */
+}
+.word-tooltip {
+  position: fixed;
+  background-color: #f9f9f9;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 1000;
+  min-width: 200px;
+  min-height: 100px;
+  max-width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tooltip-content {
+  word-wrap: break-word;
+}
+
+.tooltip-content p {
+  margin: 0 0 10px 0;
+}
+
+.tooltip-content strong {
+  display: inline-block;
+  min-width: 50px;
+}
+.saved-word {
+  color: #4caf50;
+  font-weight: bold;
+}

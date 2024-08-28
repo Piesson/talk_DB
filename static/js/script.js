@@ -12,6 +12,7 @@ const ChatApp = (function () {
   let isAnalyzing = false;
   let pendingMessage = null;
   let messageQueue = [];
+  let vocabulary = [];
 
   const elements = {
     chatContainer: document.getElementById("chat-container"),
@@ -41,8 +42,23 @@ const ChatApp = (function () {
     showReports: document.getElementById("show-reports"),
     reportsModal: document.getElementById("reports-modal"),
     reportsContainer: document.getElementById("reports-container"),
+    showVocabulary: document.getElementById("show-vocabulary"),
+    vocabularyModal: document.getElementById("vocabulary-modal"),
+    vocabularyContainer: document.getElementById("vocabulary-container"),
+    vocabularyDateSelect: document.getElementById("vocabulary-date-select"),
   };
 
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
   function init() {
     if (!elements.chatContainer) {
       console.error("Critical element is missing. Chat container not found.");
@@ -51,6 +67,14 @@ const ChatApp = (function () {
     setupEventListeners();
     setupSpeechRecognition();
     checkLoginStatus();
+    setupVocabularyEventListeners();
+  }
+
+  function setupVocabularyEventListeners() {
+    elements.showVocabulary?.addEventListener("click", showVocabularyModal);
+    elements.vocabularyModal
+      .querySelector(".close")
+      ?.addEventListener("click", closeVocabularyModal);
   }
 
   function setupEventListeners() {
@@ -180,6 +204,8 @@ const ChatApp = (function () {
       translateBtn.onclick = () =>
         translateMessage(message, messageDiv, translateBtn);
       messageDiv.appendChild(translateBtn);
+
+      addWordHoverEffects(messageBubble);
     }
 
     elements.chatContainer.appendChild(messageDiv);
@@ -188,6 +214,338 @@ const ChatApp = (function () {
     if (!isUser && audioData) {
       playAudio(audioData);
     }
+  }
+
+  function addWordHoverEffects(element) {
+    const words = element.textContent.split(/\s+/);
+    element.innerHTML = words
+      .map((word) => `<span class="hoverable-word">${word}</span>`)
+      .join(" ");
+
+    element.querySelectorAll(".hoverable-word").forEach((span) => {
+      span.addEventListener("mouseenter", showWordMeaning);
+      span.addEventListener("mouseleave", hideWordMeaning);
+      span.addEventListener("click", handleWordClick);
+    });
+  }
+
+  function handleWordClick(event) {
+    event.preventDefault();
+    const word = event.target.textContent;
+    const tooltip = document.querySelector(".word-tooltip");
+    if (tooltip) {
+      const meaning = tooltip
+        .querySelector("p:nth-child(2)")
+        .textContent.split(":")[1]
+        .trim();
+      const explanation = tooltip
+        .querySelector("p:nth-child(3)")
+        .textContent.split(":")[1]
+        .trim();
+      saveWordToVocabulary(word, meaning, explanation);
+    } else {
+      console.log("Tooltip not found. Fetching word meaning...");
+      fetchWordMeaning(word);
+    }
+  }
+
+  function fetchWordMeaning(word) {
+    fetch("/get_word_meaning", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word: word }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.meaning) {
+          saveWordToVocabulary(word, data.meaning, data.explanation);
+        } else {
+          throw new Error("Meaning not found in the response");
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching word meaning:", error);
+        alert("단어 의미를 가져오는 데 실패했습니다. 다시 시도해 주세요.");
+      });
+  }
+
+  function fetchWordMeaning(element, word) {
+    fetch("/get_word_meaning", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word: word }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.meaning) {
+          saveWordToVocabulary(element, word, data.meaning, data.explanation);
+        } else {
+          throw new Error("Meaning not found in the response");
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching word meaning:", error);
+        alert("단어 의미를 가져오는 데 실패했습니다. 다시 시도해 주세요.");
+      });
+  }
+
+  const showWordMeaning = debounce((event) => {
+    const word = event.target.textContent;
+    console.log(`Requesting meaning for word: ${word}`);
+
+    // 기존 툴팁 제거
+    hideWordMeaning();
+
+    let tooltip = document.createElement("div");
+    tooltip.className = "word-tooltip";
+    tooltip.textContent = "Loading...";
+    document.body.appendChild(tooltip);
+
+    // 툴팁 위치 조정
+    const rect = event.target.getBoundingClientRect();
+    const tooltipWidth = 300;
+    const tooltipHeight = 200;
+
+    let left = rect.left;
+    let top = rect.bottom + window.scrollY;
+
+    // 오른쪽 경계 체크
+    if (left + tooltipWidth > window.innerWidth) {
+      left = window.innerWidth - tooltipWidth - 10;
+    }
+
+    // 아래쪽 경계 체크
+    if (top + tooltipHeight > window.innerHeight + window.scrollY) {
+      top = rect.top + window.scrollY - tooltipHeight - 10;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+
+    fetch("/get_word_meaning", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word: word }),
+    })
+      .then((response) => {
+        console.log(`Response status: ${response.status}`);
+        if (!response.ok) {
+          return response.text().then((text) => {
+            console.log(`Error response text: ${text}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+          });
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Received data:", data);
+        if (!data.meaning) {
+          throw new Error("Meaning not found in the response");
+        }
+
+        // 기존 툴팁이 아직 존재하는지 확인
+        if (!document.body.contains(tooltip)) {
+          tooltip = document.createElement("div");
+          tooltip.className = "word-tooltip";
+          document.body.appendChild(tooltip);
+        }
+
+        tooltip.innerHTML = `
+          <div class="tooltip-content">
+            <p><strong>원문:</strong> ${escapeHtml(word)}</p>
+            <p><strong>뜻:</strong> ${escapeHtml(data.meaning)}</p>
+            <p><strong>설명:</strong> ${escapeHtml(
+              data.explanation || "Not available"
+            )}</p>
+          </div>
+        `;
+
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "단어장에 저장";
+        saveButton.onclick = (e) => {
+          e.stopPropagation();
+          const wordElement = event.target.closest(".hoverable-word");
+          if (wordElement) {
+            saveWordToVocabulary(word, data.meaning, data.explanation);
+          } else {
+            console.error("Could not find the word element");
+          }
+        };
+        tooltip.appendChild(saveButton);
+
+        // 툴팁에 마우스 진입 시 사라지지 않도록 설정
+        tooltip.addEventListener("mouseenter", () => {
+          clearTimeout(tooltip.hideTimeout);
+        });
+        tooltip.addEventListener("mouseleave", () => {
+          hideWordMeaning();
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching word meaning:", error);
+        tooltip.textContent = `Error loading meaning: ${error.message}`;
+      });
+  }, 300);
+
+  function hideWordMeaning() {
+    const tooltip = document.querySelector(".word-tooltip");
+    if (tooltip && tooltip.parentNode) {
+      tooltip.hideTimeout = setTimeout(() => {
+        if (tooltip.parentNode) {
+          tooltip.parentNode.removeChild(tooltip);
+        }
+      }, 300); // 300ms 지연
+    }
+  }
+
+  function saveWordToVocabulary(word, meaning, explanation) {
+    console.log(
+      `Attempting to save word: ${word}, meaning: ${meaning}, explanation: ${explanation}`
+    );
+    if (!word || !meaning) {
+      console.error("Word or meaning is missing");
+      alert("단어와 의미를 모두 입력해주세요.");
+      return;
+    }
+
+    fetch("/save_vocabulary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word, meaning, explanation: explanation || "" }),
+    })
+      .then((response) => {
+        console.log(`Save vocabulary response status: ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Save vocabulary response data:", data);
+        if (data.success) {
+          console.log("Word saved to vocabulary");
+          const savedWordElement = findWordElement(word);
+          if (savedWordElement) {
+            savedWordElement.classList.add("saved-word");
+          }
+          alert("단어가 성공적으로 저장되었습니다.");
+        } else {
+          throw new Error(data.error || "Failed to save word");
+        }
+      })
+      .catch((error) => {
+        console.error("Error saving word to vocabulary:", error);
+        alert(`단어 저장 실패: ${error.message}`);
+      });
+  }
+
+  function findWordElement(word) {
+    const words = document.querySelectorAll(".hoverable-word");
+    for (let element of words) {
+      if (element.textContent.trim() === word) {
+        return element;
+      }
+    }
+    return null;
+  }
+  function showVocabularyModal() {
+    fetch("/get_vocabulary")
+      .then((response) => {
+        if (!response.ok) {
+          return response.json().then((err) => {
+            throw new Error(
+              err.error || `HTTP error! status: ${response.status}`
+            );
+          });
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        if (!Array.isArray(data.vocabulary)) {
+          throw new Error("Invalid vocabulary data");
+        }
+        groupedVocabulary = groupVocabularyByDate(data.vocabulary);
+        populateDateSelector();
+        const dates = Object.keys(groupedVocabulary);
+        if (dates.length > 0) {
+          displayVocabularyForDate(dates[0]);
+        } else {
+          elements.vocabularyContainer.innerHTML =
+            "<p>No vocabulary items found.</p>";
+        }
+        elements.vocabularyModal.style.display = "block";
+      })
+      .catch((error) => {
+        console.error("Error fetching vocabulary:", error);
+        elements.vocabularyContainer.innerHTML = `<p>Error loading vocabulary: ${error.message}</p>`;
+        elements.vocabularyModal.style.display = "block";
+      });
+  }
+
+  function groupVocabularyByDate(vocabulary) {
+    if (!Array.isArray(vocabulary) || vocabulary.length === 0) {
+      return {};
+    }
+    return vocabulary.reduce((acc, item) => {
+      const date = new Date(item.created_at).toLocaleDateString();
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(item);
+      return acc;
+    }, {});
+  }
+
+  function closeVocabularyModal() {
+    elements.vocabularyModal.style.display = "none";
+  }
+
+  function displayVocabulary() {
+    elements.vocabularyContainer.innerHTML = "";
+    vocabulary.forEach((item) => {
+      const wordElement = document.createElement("div");
+      wordElement.className = "vocabulary-item";
+      wordElement.innerHTML = `<strong>${item.word}</strong>: ${item.meaning}`;
+      elements.vocabularyContainer.appendChild(wordElement);
+    });
+  }
+
+  function displayVocabularyForDate(date) {
+    const vocabularyItems = groupedVocabulary[date];
+    elements.vocabularyContainer.innerHTML = "";
+    vocabularyItems.forEach((item) => {
+      const itemElement = document.createElement("div");
+      itemElement.className = "vocabulary-item";
+      itemElement.innerHTML = `
+            <p><strong>원문:</strong> ${escapeHtml(item.word)}</p>
+            <p><strong>뜻:</strong> ${escapeHtml(item.meaning)}</p>
+            <p><strong>설명:</strong> ${escapeHtml(
+              item.explanation || "설명 없음"
+            )}</p>
+        `;
+      elements.vocabularyContainer.appendChild(itemElement);
+    });
+  }
+  function escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function populateDateSelector() {
+    elements.vocabularyDateSelect.innerHTML = "";
+    Object.keys(groupedVocabulary).forEach((date) => {
+      const option = document.createElement("option");
+      option.value = date;
+      option.textContent = date;
+      elements.vocabularyDateSelect.appendChild(option);
+    });
+    elements.vocabularyDateSelect.addEventListener("change", (e) => {
+      displayVocabularyForDate(e.target.value);
+    });
   }
 
   function playAudio(audioData) {
@@ -1065,6 +1423,7 @@ const ChatApp = (function () {
     showTodaysNews: showTodaysNews,
     showReportsModal: showReportsModal,
     showAnalysis: showAnalysis,
+    showVocabularyModal: showVocabularyModal,
   };
 })();
 
